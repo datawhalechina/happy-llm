@@ -564,34 +564,30 @@ class Decoder(nn.Module):
 
 完成上述 Encoder、Decoder 的搭建，就完成了 Transformer 的核心部分，接下来将 Encoder、Decoder 拼接起来再加入 Embedding 层就可以搭建出完整的 Transformer 模型啦。
 
-## 2.3 搭建一个 Transformer
+# 2.3 搭建一个 Transformer
 
 在前两章，我们分别深入剖析了 Attention 机制和 Transformer 的核心——Encoder、Decoder 结构，接下来，我们就可以基于上一章实现的组件，搭建起一个完整的 Transformer 模型。
 
-### 2.3.1 Embeddng 层
+## 2.3.1 Embeddng 层
 
 正如我们在第一章所讲过的，在 NLP 任务中，我们往往需要将自然语言的输入转化为机器可以处理的向量。在深度学习中，承担这个任务的组件就是 Embedding 层。
 
 Embedding 层其实是一个存储固定大小的词典的嵌入向量查找表。也就是说，在输入神经网络之前，我们往往会先让自然语言输入通过分词器 tokenizer，分词器的作用是把自然语言输入切分成 token 并转化成一个固定的 index。例如，如果我们将词表大小设为 4，输入“我喜欢你”，那么，分词器可以将输入转化成：
 
-```
-input: 我
-output: 0
+    input: 我
+    output: 0
 
-input: 喜欢
-output: 1
+    input: 喜欢
+    output: 1
 
-input：你
-output: 2
-```
+    input：你
+    output: 2
 
 当然，在实际情况下，tokenizer 的工作会比这更复杂。例如，分词有多种不同的方式，可以切分成词、切分成子词、切分成字符等，而词表大小则往往高达数万数十万。此处我们不赘述 tokenizer 的详细情况，在后文会详细介绍大模型的 tokenizer 是如何运行和训练的。
 
 因此，Embedding 层的输入往往是一个形状为 （batch_size，seq_len，1）的矩阵，第一个维度是一次批处理的数量，第二个维度是自然语言序列的长度，第三个维度则是 token 经过 tokenizer 转化成的 index 值。例如，对上述输入，Embedding 层的输入会是：
 
-```
-[[0,1,2]]
-```
+    [[0,1,2]]
 
 其 batch_size 为1，seq_len 为3，转化出来的 index 如上。
 
@@ -603,32 +599,56 @@ output: 2
 self.tok_embeddings = nn.Embedding(args.vocab_size, args.dim)
 ```
 
-### 2.3.2 位置编码
+## 2.3.2 位置编码
 
-注意力机制可以实现良好的并行计算，但同时，其注意力计算的方式也导致序列中相对位置的丢失。在 RNN、LSTM 中，输入序列会沿着语句本身的顺序被依次递归处理，因此输入序列的顺序提供了极其重要的信息，这也和自然语言的本身特性非常吻合。
+Attention 机制可以实现良好的并行计算，但同时，其注意力计算的方式也导致序列中相对位置的丢失。在 RNN、LSTM 中，输入序列会沿着语句本身的顺序被依次递归处理，因此输入序列的顺序提供了极其重要的信息，这也和自然语言的本身特性非常吻合。
 
-但从上文对注意力机制的分析我们可以发现，在注意力机制的计算过程中，对于序列中的每一个 token，其他各个位置对其来说都是平等的，即“我喜欢你”和“你喜欢我”在注意力机制看来是完全相同的，但无疑这是注意力机制存在的一个巨大问题。因此，为使用序列顺序信息，保留序列中的相对位置信息，Transformer 采用了位置编码机制，该机制也在之后被多种模型沿用。
+但从上文对 Attention 机制的分析我们可以发现，在 Attention 机制的计算过程中，对于序列中的每一个 token，其他各个位置对其来说都是平等的，即“我喜欢你”和“你喜欢我”在 Attention 机制看来是完全相同的，但无疑这是 Attention 机制存在的一个巨大问题。因此，为使用序列顺序信息，保留序列中的相对位置信息，Transformer 采用了位置编码机制，该机制也在之后被多种模型沿用。
 
 ​位置编码，即根据序列中 token 的相对位置对其进行编码，再将位置编码加入词向量编码中。位置编码的方式有很多，Transformer 使用了正余弦函数来进行位置编码（绝对位置编码Sinusoidal），其编码方式为：
 
-$$
-PE(pos, 2i) = sin(pos/10000^{2i/d_{model}})\\
-PE(pos, 2i+1) = cos(pos/10000^{2i/d_{model}})
-$$
+$$PE(pos, 2i) = sin(pos/10000^{2i/d_{model}})$$
+
+$$PE(pos, 2i+1) = cos(pos/10000^{2i/d_{model}})$$
 
 ​上式中，pos 为 token 在句子中的位置，2i 和 2i+1 则是指示了 token 是奇数位置还是偶数位置，从上式中我们可以看出对于奇数位置的 token 和偶数位置的 token，Transformer 采用了不同的函数进行编码。
 
-我们以一个简单的例子来说明位置编码的计算过程：假如我们输入的是一个长度为 4 的句子"I like to code"，我们可以得到下面的词向量矩阵$\rm x$，其中每一行代表的就是一个词向量，$\rm x_0=[0.1,0.2,0.3,0.4]$对应的就是“I”的词向量，它的pos就是为0，以此类推，第二行代表的是“like”的词向量，它的pos就是1：
+我们以一个简单的例子来说明位置编码的计算过程：假如我们输入的是一个长度为 4 的句子 "I like to code"，我们可以得到下面的词向量矩阵 $\mathbf{x}$，其中每一行代表一个词向量， $\mathbf{x_0}$ = [0.1, 0.2, 0.3, 0.4] 对应 "I" 的词向量（位置 pos=0），以此类推：
 
 $$
-\rm x = \begin{bmatrix} 0.1 & 0.2 & 0.3 & 0.4 \\ 0.2 & 0.3 & 0.4 & 0.5 \\ 0.3 & 0.4 & 0.5 & 0.6 \\ 0.4 & 0.5 & 0.6 & 0.7 \end{bmatrix}
+\mathbf{x} = \begin{bmatrix} 
+0.1 & 0.2 & 0.3 & 0.4 \\ 
+0.2 & 0.3 & 0.4 & 0.5 \\ 
+0.3 & 0.4 & 0.5 & 0.6 \\ 
+0.4 & 0.5 & 0.6 & 0.7 
+\end{bmatrix}
 $$
 
-​则经过位置编码后的词向量为：
+则经过位置编码后的词向量为：
 
 $$
-\rm x_{PE} = \begin{bmatrix} 0.1 & 0.2 & 0.3 & 0.4 \\ 0.2 & 0.3 & 0.4 & 0.5 \\ 0.3 & 0.4 & 0.5 & 0.6 \\ 0.4 & 0.5 & 0.6 & 0.7 \end{bmatrix} + \begin{bmatrix} \sin(\frac{0}{10000^0}) & \cos(\frac{0}{10000^0}) & \sin(\frac{0}{10000^{2/4}}) & \cos(\frac{0}{10000^{2/4}}) \\ \sin(\frac{1}{10000^0}) & \cos(\frac{1}{10000^0}) & \sin(\frac{1}{10000^{2/4}}) & \cos(\frac{1}{10000^{2/4}}) \\ \sin(\frac{2}{10000^0}) & \cos(\frac{2}{10000^0}) & \sin(\frac{2}{10000^{2/4}}) & \cos(\frac{2}{10000^{2/4}}) \\ \sin(\frac{3}{10000^0}) & \cos(\frac{3}{10000^0}) & \sin(\frac{3}{10000^{2/4}}) & \cos(\frac{3}{10000^{2/4}}) \end{bmatrix} = \begin{bmatrix} 0.1 & 1.2 & 0.3 & 1.4 \\ 1.041 & 0.84 & 0.41 & 1.49 \\ 1.209 & -0.016 & 0.52 & 1.59 \\ 0.541 & -0.489 & 0.895 & 1.655 \end{bmatrix}
+\mathbf{x}_{PE} = 
+\begin{bmatrix} 
+0.1 & 0.2 & 0.3 & 0.4 \\ 
+0.2 & 0.3 & 0.4 & 0.5 \\ 
+0.3 & 0.4 & 0.5 & 0.6 \\ 
+0.4 & 0.5 & 0.6 & 0.7 
+\end{bmatrix} + 
+\begin{bmatrix} 
+\sin\left(\frac{0}{10000^0}\right) & \cos\left(\frac{0}{10000^0}\right) & \sin\left(\frac{0}{10000^{2/4}}\right) & \cos\left(\frac{0}{10000^{2/4}}\right) \\ 
+\sin\left(\frac{1}{10000^0}\right) & \cos\left(\frac{1}{10000^0}\right) & \sin\left(\frac{1}{10000^{2/4}}\right) & \cos\left(\frac{1}{10000^{2/4}}\right) \\ 
+\sin\left(\frac{2}{10000^0}\right) & \cos\left(\frac{2}{10000^0}\right) & \sin\left(\frac{2}{10000^{2/4}}\right) & \cos\left(\frac{2}{10000^{2/4}}\right) \\ 
+\sin\left(\frac{3}{10000^0}\right) & \cos\left(\frac{3}{10000^0}\right) & \sin\left(\frac{3}{10000^{2/4}}\right) & \cos\left(\frac{3}{10000^{2/4}}\right) 
+\end{bmatrix} = 
+\begin{bmatrix} 
+0.1 & 1.2 & 0.3 & 1.4 \\ 
+1.041 & 0.84 & 0.41 & 1.49 \\ 
+1.209 & -0.016 & 0.52 & 1.59 \\ 
+0.541 & -0.489 & 0.895 & 1.655 
+\end{bmatrix}
 $$
+
+
 
 我们可以使用如下的代码来获取上述例子的位置编码：
 ```python
@@ -646,14 +666,12 @@ def PositionEncoding(seq_len, d_model, n=10000):
 P = PositionEncoding(seq_len=4, d_model=4, n=100)
 print(P)
 ```
-
 ```python
 [[ 0.          1.          0.          1.        ]
  [ 0.84147098  0.54030231  0.09983342  0.99500417]
  [ 0.90929743 -0.41614684  0.19866933  0.98006658]
  [ 0.14112001 -0.9899925   0.29552021  0.95533649]]
 ```
-
 这样的位置编码主要有两个好处：
 
 1. 使 PE 能够适应比训练集里面所有句子更长的句子，假设训练集里面最长的句子是有 20 个单词，突然来了一个长度为 21 的句子，则使用公式计算的方法可以计算出第 21 位的 Embedding。
@@ -662,80 +680,79 @@ print(P)
 我们也可以通过严谨的数学推导证明该编码方式的优越性。原始的 Transformer Embedding 可以表示为：
 
 $$
-\begin{equation}f(\cdots,\boldsymbol{x}_m,\cdots,\boldsymbol{x}_n,\cdots)=f(\cdots,\boldsymbol{x}_n,\cdots,\boldsymbol{x}_m,\cdots)\end{equation}
+\begin{equation}
+f(\cdots,\mathbf{x}_m,\cdots,\mathbf{x}_n,\cdots)=f(\cdots,\mathbf{x}_n,\cdots,\mathbf{x}_m,\cdots)
+\end{equation}
 $$
 
 很明显，这样的函数是不具有不对称性的，也就是无法表征相对位置信息。我们想要得到这样一种编码方式：
 
-$$
-\begin{equation}\tilde{f}(\cdots,\boldsymbol{x}_m,\cdots,\boldsymbol{x}_n,\cdots)=f(\cdots,\boldsymbol{x}_m + \boldsymbol{p}_m,\cdots,\boldsymbol{x}_n + \boldsymbol{p}_n,\cdots)\end{equation}
-$$
-
-这里加上的 $p_m$，$p_n$ 就是位置编码。接下来我们将 $f(...,x_m+p_m,...,x_n+p_n)$ 在 m,n 两个位置上做泰勒展开：
+这里加上的 $\mathbf{p}_m$，$\mathbf{p}_n$ 就是位置编码。接下来我们将 $f(\ldots,\mathbf{x}_m + \mathbf{p}_m,\ldots,\mathbf{x}_n + \mathbf{p}_n)$ 在 m,n 两个位置上做泰勒展开：
 
 $$
-\begin{equation}\tilde{f}\approx f + \boldsymbol{p}_m^{\top} \frac{\partial f}{\partial \boldsymbol{x}_m} + \boldsymbol{p}_n^{\top} \frac{\partial f}{\partial \boldsymbol{x}_n} + \frac{1}{2}\boldsymbol{p}_m^{\top} \frac{\partial^2 f}{\partial \boldsymbol{x}_m^2}\boldsymbol{p}_m + \frac{1}{2}\boldsymbol{p}_n^{\top} \frac{\partial^2 f}{\partial \boldsymbol{x}_n^2}\boldsymbol{p}_n + \underbrace{\boldsymbol{p}_m^{\top} \frac{\partial^2 f}{\partial \boldsymbol{x}_m \partial \boldsymbol{x}_n}\boldsymbol{p}_n}_{\boldsymbol{p}_m^{\top} \boldsymbol{\mathcal{H}} \boldsymbol{p}_n}\end{equation}
+\widetilde{f} \approx f + \mathbf{p}_m^T \frac{\partial f}{\partial \mathbf{x}_m} + \mathbf{p}_n^T \frac{\partial f}{\partial \mathbf{x}_n} + \frac{1}{2}\mathbf{p}_m^T \frac{\partial^2 f}{\partial \mathbf{x}_m^2}\mathbf{p}_m + \frac{1}{2}\mathbf{p}_n^T \frac{\partial^2 f}{\partial \mathbf{x}_n^2}\mathbf{p}_n + \mathbf{p}_m^T \frac{\partial^2 f}{\partial \mathbf{x}_m \partial \mathbf{x}_n}\mathbf{p}_n
 $$
 
-可以看到第1项与位置无关，2～5项仅依赖单一位置，第6项（f 分别对 m、n 求偏导）与两个位置有关，所以我们希望第六项（$p_m^THp_n$）表达相对位置信息，即求一个函数 g 使得:
-
-$$
-p_m^THp_n = g(m-n)
-$$
+可以看到第1项与位置无关，2～5项仅依赖单一位置，第6项（f 分别对 m、n 求偏导）与两个位置有关，所以我们希望第六项 $p_m^THp_n$表达相对位置信息，即求一个函数 g 使得 
+$$p_m^THp_n = g(m-n)$$
 
 我们假设 $H$ 是一个单位矩阵，则：
 
-$$
-p_m^THp_n = p_m^Tp_n = \langle\boldsymbol{p}_m, \boldsymbol{p}_n\rangle = g(m-n)
-$$
+$$p_m^THp_n = p_m^Tp_n = \langle{p}_m, {p}_n\rangle = g(m-n)$$
 
 通过将向量 [x,y] 视为复数 x+yi，基于复数的运算法则构建方程:
 
-$$
-\begin{equation}\langle\boldsymbol{p}_m, \boldsymbol{p}_n\rangle = \text{Re}[\boldsymbol{p}_m \boldsymbol{p}_n^*]\end{equation}
-$$
+$$\begin{equation}\langle{p}_m, {p}_n\rangle = \text{Re}[{p}_m {p}_n^*]\end{equation}$$
 
 再假设存在复数 $q_{m-n}$ 使得：
 
-$$
-\begin{equation}\boldsymbol{p}_m \boldsymbol{p}_n^* = \boldsymbol{q}_{m-n}\end{equation}
-$$
+$$p_mp_n^* = q_{m-n}$$
 
 使用复数的指数形式求解这个方程，得到二维情形下位置编码的解：
 
-$$
-\begin{equation}\boldsymbol{p}_m = e^{\text{i}m\theta}\quad\Leftrightarrow\quad \boldsymbol{p}_m=\begin{pmatrix}\cos m\theta \\ \sin m\theta\end{pmatrix}\end{equation}
-$$
+$$\begin{equation}{p}_m = e^{\text{i}m\theta}\quad\Leftrightarrow\quad {p}_m=\begin{pmatrix}\cos m\theta \\ \sin m\theta\end{pmatrix}\end{equation}$$
 
 由于内积满足线性叠加性，所以更高维的偶数维位置编码，我们可以表示为多个二维位置编码的组合：
 
 $$
-\begin{equation}\boldsymbol{p}_m = \begin{pmatrix}e^{\text{i}m\theta_0} \\ e^{\text{i}m\theta_1} \\ \vdots \\ e^{\text{i}m\theta_{d/2-1}}\end{pmatrix}\quad\Leftrightarrow\quad \boldsymbol{p}_m=\begin{pmatrix}\cos m\theta_0 \\ \sin m\theta_0 \\ \cos m\theta_1 \\ \sin m\theta_1 \\ \vdots \\ \cos m\theta_{d/2-1} \\ \sin m\theta_{d/2-1}  \end{pmatrix}\end{equation}
+\begin{equation}
+p_m = 
+\begin{pmatrix}
+e^{i m \theta_0} \\ 
+e^{i m \theta_1} \\ 
+\vdots \\ 
+e^{i m \theta_{d/2-1}}
+\end{pmatrix} 
+\quad \Leftrightarrow \quad 
+p_m = 
+\begin{pmatrix}
+\cos m \theta_0 \\ 
+\sin m \theta_0 \\ 
+\cos m \theta_1 \\ 
+\sin m \theta_1 \\ 
+\vdots \\ 
+\cos m \theta_{d/2-1} \\ 
+\sin m \theta_{d/2-1}
+\end{pmatrix}
+\end{equation}
 $$
 
-再取 $\theta_i = 10000^{-2i/d}$（该形式可以使得随着|m−n|的增大，⟨pm,pn⟩有着趋于零的趋势，这一点可以通过对位置编码做积分来证明，而 base 取为 10000 是实验结果），就得到了上文的编码方式。
+再取 $\theta_i = 10000^{-2i/d}$（该形式可以使得随着 $|m-n|$ 的增大，⟨pm, pn⟩ 有着趋于零的趋势，这一点可以通过对位置编码做积分来证明，而 base 取为 10000 是实验结果），就得到了上文的编码方式。
 
-当 $H$ 不是一个单位矩阵时，因为模型的 Embedding 层所形成的 d 维向量之间任意两个维度的相关性比较小，满足一定的解耦性，我们可以将其视作对角矩阵，那么使用上述编码：
+当 $\mathcal{H}$ 不是一个单位矩阵时，因为模型的 Embedding 层所形成的 $d$ 维向量之间任意两个维度的相关性比较小，满足一定的解耦性，我们可以将其视作对角矩阵，那么使用上述编码：
 
-$$
-\begin{equation}\boldsymbol{p}_m^{\top} \boldsymbol{\mathcal{H}} \boldsymbol{p}_n=\sum_{i=1}^{d/2} \boldsymbol{\mathcal{H}}_{2i,2i} \cos m\theta_i \cos n\theta_i + \boldsymbol{\mathcal{H}}_{2i+1,2i+1} \sin m\theta_i \sin n\theta_i\end{equation}
-$$
+$$p_m^THp_n = p_m^Tp_n = \langle{p}_m, {p}_n\rangle = g(m-n)$$ 
 
 通过积化和差：
 
-$$
-\begin{equation}\sum_{i=1}^{d/2} \frac{1}{2}\left(\boldsymbol{\mathcal{H}}_{2i,2i} + \boldsymbol{\mathcal{H}}_{2i+1,2i+1}\right) \cos (m-n)\theta_i + \frac{1}{2}\left(\boldsymbol{\mathcal{H}}_{2i,2i} - \boldsymbol{\mathcal{H}}_{2i+1,2i+1}\right) \cos (m+n)\theta_i \end{equation}
-$$
+$$\sum_{i=0}^{d/2-1} \frac{1}{2} \left( H_{2i,2i} + H_{2i+1,2i+1} \right) \cos((m-n)\theta_i) + \frac{1}{2} \left( H_{2i,2i} - H_{2i+1,2i+1} \right) \cos((m+n)\theta_i)$$
+
 
 说明该编码仍然可以表示相对位置。
 
-上述​编码结果，如图2.6所示：
+上述​编码结果示例如下：
 
-<div align="center">
-  <img src="../images/2-figures/3-0.png" alt="图片描述" width="90%"/>
-  <p>图2.6 编码结果</p>
-</div>
-
+![Positional Embedding](./figures/3-0.png)
 
 基于上述原理，我们实现一个​位置编码层：
 
