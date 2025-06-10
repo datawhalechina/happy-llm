@@ -1,7 +1,7 @@
 {
     "add_bos_token": false,
     "add_eos_token": false,
-    "add_prefix_space": true,
+    "add_prefix_space": false,
     "bos_token": "<|im_start|>",
     "eos_token": "<|im_end|>",
     "pad_token": "<|im_end|>",
