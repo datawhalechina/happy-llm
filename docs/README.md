@@ -91,6 +91,16 @@
   </a>
 </div>
 
+## Star History
+
+<div align='center'>
+    <img src="../images/star-history-2025612.png" alt="Datawhale" width="90%">
+</div>
+
+<div align="center">
+  <p>⭐ 如果这个项目对你有帮助，请给我们一个 Star！</p>
+</div>
+
 ## 关于 Datawhale
 
 <div align='center'>
