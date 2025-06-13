@@ -36,7 +36,7 @@
 
 | 章节 | 关键内容 | 状态 |
 | --- | --- | --- |
-| [前言](./docs/README.md) | 本项目的缘起、背景及读者建议 | ✅ |
+| [前言](./docs/前言.md) | 本项目的缘起、背景及读者建议 | ✅ |
 | [第一章 NLP 基础概念](./docs/chapter1/第一章%20NLP基础概念.md) | 什么是 NLP、发展历程、任务分类、文本表示演进 | ✅ |
 | [第二章 Transformer 架构](./docs/chapter2/第二章%20Transformer架构.md) | 注意力机制、Encoder-Decoder、手把手搭建 Transformer | ✅ |
 | [第三章 预训练语言模型](./docs/chapter3/第三章%20预训练语言模型.md) | Encoder-only、Encoder-Decoder、Decoder-Only 模型对比 | ✅ |
