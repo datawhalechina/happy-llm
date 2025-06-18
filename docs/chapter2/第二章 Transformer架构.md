@@ -132,7 +132,7 @@ def attention(query, key, value, dropout=None):
     key: 键值矩阵
     value: 真值矩阵
     '''
-    # 获取键向量的维度，键向量的维度和值向量的维度相同
+    # 获取键张量的维度，键向量的维度和值向量的维度相同
     d_k = query.size(-1) 
     # 计算Q与K的内积并除以根号dk
     # transpose——相当于转置
