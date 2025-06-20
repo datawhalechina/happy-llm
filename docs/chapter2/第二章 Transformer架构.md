@@ -9,21 +9,21 @@
 - 前馈神经网络（Feedforward Neural Network，FNN），即每一层的神经元都和上下两层的每一个神经元完全连接，如图2.1所示:
 
 <div align="center">
-  <img src="../images/2-figures/1-0.png" alt="图片描述" width="90%"/>
+  <img src="https://raw.githubusercontent.com/datawhalechina/happy-llm/main/docs/images/2-figures/1-0.png" alt="图片描述" width="90%"/>
   <p>图2.1 前馈神经网络</p>
 </div>
 
 - 卷积神经网络（Convolutional Neural Network，CNN），即训练参数量远小于前馈神经网络的卷积层来进行特征提取和学习，如图2.2所示:
 
 <div align="center">
-  <img src="../images/2-figures/1-1.png" alt="图片描述" width="90%"/>
+  <img src="https://raw.githubusercontent.com/datawhalechina/happy-llm/main/docs/images/2-figures/1-1.png" alt="图片描述" width="90%"/>
   <p>图2.2 卷积神经网络</p>
 </div>
 
 - 循环神经网络（Recurrent Neural Network，RNN），能够使用历史信息作为输入、包含环和自重复的网络，如图2.3所示:
 
 <div align="center">
-  <img src="../images/2-figures/1-2.png" alt="图片描述" width="90%"/>
+  <img src="https://raw.githubusercontent.com/datawhalechina/happy-llm/main/docs/images/2-figures/1-2.png" alt="图片描述" width="90%"/>
   <p>图2.3 循环神经网络</p>
 </div>
 
@@ -155,7 +155,7 @@ def attention(query, key, value, dropout=None):
 
 但是，在我们的实际应用中，我们往往只需要计算 Query 和 Key 之间的注意力结果，很少存在额外的真值 Value。也就是说，我们其实只需要拟合两个文本序列。​在经典的 注意力机制中，Q 往往来自于一个序列，K 与 V 来自于另一个序列，都通过参数矩阵计算得到，从而可以拟合这两个序列之间的关系。例如在 Transformer 的 Decoder 结构中，Q 来自于 Decoder 的输入，K 与 V 来自于 Encoder 的输出，从而拟合了编码信息与历史信息之间的关系，便于综合这两种信息实现未来的预测。
 
-​但在 Transformer 的 Encoder 结构中，使用的是 注意力机制的变种 —— 自注意力（self-attention，自注意力）机制。所谓自注意力，即是计算本身序列中每个元素都其他元素的注意力分布，即在计算过程中，Q、K、V 都由同一个输入通过不同的参数矩阵计算得到。在 Encoder 中，Q、K、V 分别是输入对参数矩阵 $W_q、W_k、W_v$ 做积得到，从而拟合输入语句中每一个 token 对其他所有 token 的关系。
+​但在 Transformer 的 Encoder 结构中，使用的是 注意力机制的变种 —— 自注意力（self-attention，自注意力）机制。所谓自注意力，即是计算本身序列中每个元素对其他元素的注意力分布，即在计算过程中，Q、K、V 都由同一个输入通过不同的参数矩阵计算得到。在 Encoder 中，Q、K、V 分别是输入对参数矩阵 $W_q、W_k、W_v$ 做积得到，从而拟合输入语句中每一个 token 对其他所有 token 的关系。
 
 通过自注意力机制，我们可以找到一段文本中每一个 token 与其他所有 token 的相关关系大小，从而建模文本之间的依赖关系。​在代码中的实现，self-attention 机制其实是通过给 Q、K、V 的输入传入同一个参数实现的：
 
@@ -222,7 +222,7 @@ scores = F.softmax(scores.float(), dim=-1).type_as(xq)
 在原论文中，作者也通过实验证实，多头注意力计算中，每个不同的注意力头能够拟合语句中的不同信息，如图2.4所示：
 
 <div align="center">
-  <img src="../images/2-figures/1-3.jpeg" alt="图片描述" width="90%"/>
+  <img src="https://raw.githubusercontent.com/datawhalechina/happy-llm/main/docs/images/2-figures/1-3.jpeg" alt="图片描述" width="90%"/>
   <p>图2.4 多头注意力机制</p>
 </div>
 
@@ -346,7 +346,7 @@ Seq2Seq，即序列到序列，是一种经典 NLP 任务。具体而言，是�
 Transformer 中的 Encoder，就是用于上述的编码过程；Decoder 则用于上述的解码过程。Transformer 结构，如图2.5所示：
 
 <div align="center">
-  <img src="../images/2-figures/2-0.jpg" alt="图片描述" width="90%"/>
+  <img src="https://raw.githubusercontent.com/datawhalechina/happy-llm/main/docs/images/2-figures/2-0.jpg" alt="图片描述" width="90%"/>
   <p>图2.5 编码器-解码器结构</p>
 </div>
 
@@ -732,7 +732,7 @@ $$
 上述​编码结果，如图2.6所示：
 
 <div align="center">
-  <img src="../images/2-figures/3-0.png" alt="图片描述" width="90%"/>
+  <img src="https://raw.githubusercontent.com/datawhalechina/happy-llm/main/docs/images/2-figures/3-0.png" alt="图片描述" width="90%"/>
   <p>图2.6 编码结果</p>
 </div>
 
@@ -773,7 +773,7 @@ class PositionalEncoding(nn.Module):
 上述所有组件，再按照下图的 Tranfromer 结构拼接起来就是一个完整的 Transformer 模型了，如图2.7所示：
 
 <div align="center">
-  <img src="../images/2-figures/3-1.png" alt="图片描述" width="80%"/>
+  <img src="https://raw.githubusercontent.com/datawhalechina/happy-llm/main/docs/images/2-figures/3-1.png" alt="图片描述" width="80%"/>
   <p>图2.7 Transformer 模型结构</p>
 </div>
 

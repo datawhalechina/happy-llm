@@ -2,11 +2,11 @@ from openai import OpenAI
 import json
 from typing import List, Dict, Any
 from src.utils import function_to_json
-from src.tools import get_current_datetime, add, compare, count_letter_in_string
+from src.tools import get_current_datetime, add, compare, count_letter_in_string, search_wikipedia, get_current_temperature
 
 import pprint
 
-SYSREM_PROMPT = """
+SYSTEM_PROMPT = """
 你是一个叫不要葱姜蒜的人工智能助手。你的输出应该与用户的语言保持一致。
 当用户的问题需要调用工具时，你可以从提供的工具列表中调用适当的工具函数。
 """
@@ -17,7 +17,7 @@ class Agent:
         self.tools = tools
         self.model = model
         self.messages = [
-            {"role": "system", "content": SYSREM_PROMPT},
+            {"role": "system", "content": SYSTEM_PROMPT},
         ]
         self.verbose = verbose
 

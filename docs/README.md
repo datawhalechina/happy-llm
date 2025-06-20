@@ -42,14 +42,14 @@
 
 | 章节 | 关键内容 | 状态 |
 | --- | --- | --- |
-| [前言](./docs/README.md) | 本项目的缘起、背景及读者建议 | ✅ |
-| [第一章 NLP 基础概念](./docs/chapter1/第一章%20NLP基础概念.md) | 什么是 NLP、发展历程、任务分类、文本表示演进 | ✅ |
-| [第二章 Transformer 架构](./docs/chapter2/第二章%20Transformer架构.md) | 注意力机制、Encoder-Decoder、手把手搭建 Transformer | ✅ |
-| [第三章 预训练语言模型](./docs/chapter3/第三章%20预训练语言模型.md) | Encoder-only、Encoder-Decoder、Decoder-Only 模型对比 | ✅ |
-| [第四章 大语言模型](./docs/chapter4/第四章%20大语言模型.md) | LLM 定义、训练策略、涌现能力分析 | ✅ |
-| [第五章 动手搭建大模型](./docs/chapter5/第五章%20动手搭建大模型.md) | 实现 LLaMA2、训练 Tokenizer、预训练小型 LLM | ✅ |
-| [第六章 大模型训练实践](./docs/chapter6/第六章%20大模型训练流程实践.md) | 预训练、有监督微调、LoRA/QLoRA 高效微调 | ✅ |
-| [第七章 大模型应用](./docs/chapter7/第七章%20大模型应用.md) | 模型评测、RAG 检索增强、Agent 智能体 | ✅ |
+| [前言](./前言.md) | 本项目的缘起、背景及读者建议 | ✅ |
+| [第一章 NLP 基础概念](./chapter1/第一章%20NLP基础概念.md) | 什么是 NLP、发展历程、任务分类、文本表示演进 | ✅ |
+| [第二章 Transformer 架构](./chapter2/第二章%20Transformer架构.md) | 注意力机制、Encoder-Decoder、手把手搭建 Transformer | ✅ |
+| [第三章 预训练语言模型](./chapter3/第三章%20预训练语言模型.md) | Encoder-only、Encoder-Decoder、Decoder-Only 模型对比 | ✅ |
+| [第四章 大语言模型](./chapter4/第四章%20大语言模型.md) | LLM 定义、训练策略、涌现能力分析 | ✅ |
+| [第五章 动手搭建大模型](./chapter5/第五章%20动手搭建大模型.md) | 实现 LLaMA2、训练 Tokenizer、预训练小型 LLM | ✅ |
+| [第六章 大模型训练实践](./chapter6/第六章%20大模型训练流程实践.md) | 预训练、有监督微调、LoRA/QLoRA 高效微调 | ✅ |
+| [第七章 大模型应用](./chapter7/第七章%20大模型应用.md) | 模型评测、RAG 检索增强、Agent 智能体 | ✅ |
 
 ## 💡 如何学习
 
@@ -90,7 +90,7 @@
 ## Star History
 
 <div align='center'>
-    <img src="./images/star-history-202566.png" alt="Datawhale" width="90%">
+    <img src="./images/star-history-2025612.png" alt="Datawhale" width="90%">
 </div>
 
 <div align="center">

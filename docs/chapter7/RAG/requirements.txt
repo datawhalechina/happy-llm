@@ -1,0 +1,14 @@
+openai
+zhipuai
+numpy
+python-dotenv
+torch
+torchvision
+torchaudio
+transformers
+tqdm
+PyPDF2
+markdown
+html2text
+tiktoken
+beautifulsoup4
