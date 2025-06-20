@@ -568,7 +568,7 @@ class Decoder(nn.Module):
 
 在前两章，我们分别深入剖析了 Attention 机制和 Transformer 的核心——Encoder、Decoder 结构，接下来，我们就可以基于上一章实现的组件，搭建起一个完整的 Transformer 模型。
 
-### 2.3.1 Embeddng 层
+### 2.3.1 Embedding 层
 
 正如我们在第一章所讲过的，在 NLP 任务中，我们往往需要将自然语言的输入转化为机器可以处理的向量。在深度学习中，承担这个任务的组件就是 Embedding 层。
 
