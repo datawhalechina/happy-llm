@@ -20,7 +20,7 @@ class ModelConfig(PretrainedConfig):
             n_heads: int = 16,
             n_kv_heads: int = 8,
             vocab_size: int = 6144,
-            hidden_dim: int = None,
+            hidden_dim: int = 0,
             multiple_of: int = 64,
             norm_eps: float = 1e-5,
             max_seq_len: int = 512,
@@ -284,7 +284,7 @@ class Transformer(PreTrainedModel):
     config_class = ModelConfig  # 配置类
     last_loss: Optional[torch.Tensor] # 记录最后一次计算的损失
 
-    def __init__(self, args: ModelConfig = None):
+    def __init__(self, args: ModelConfig = ModelConfig()):
         super().__init__(args)
         # 初始化模型参数
         self.args = args
