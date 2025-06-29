@@ -433,9 +433,9 @@ class LayerNorm(nn.Module):
     def forward(self, x):
 	# 在统计每个样本所有维度的值，求均值和方差
 	mean = x.mean(-1, keepdim=True) # mean: [bsz, max_len, 1]
-	std = x.std(-1, keepdim=True) # std: [bsz, max_len, 1]
+	var = x.var(-1, keepdim=True, unbiased=False) # std: [bsz, max_len, 1]
     # 注意这里也在最后一个维度发生了广播
-	return self.a_2 * (x - mean) / (std + self.eps) + self.b_2
+	return self.a_2 * (x - mean) / torch.sqrt(var + self.eps) + self.b_2
 ```
 注意，在我们上文实现的 Layer Norm 层中，有两个线性矩阵进行映射。
 
