@@ -84,10 +84,10 @@ class ReadFiles:
                             break
                     curr_chunk = curr_chunk[-cover_content:] + line[start:end]
                     chunk_text.append(curr_chunk)
-                # 处理最后一个块
-                start = (num_chunks - 1) * token_len
-                curr_chunk = curr_chunk[-cover_content:] + line[start:end]
-                chunk_text.append(curr_chunk)
+                # # 处理最后一个块
+                # start = (num_chunks - 1) * token_len
+                # curr_chunk = curr_chunk[-cover_content:] + line[start:end]
+                # chunk_text.append(curr_chunk)
                 
             if curr_len + line_len <= token_len:
                 curr_chunk += line
