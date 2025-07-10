@@ -178,8 +178,8 @@ def eval_tokenizer(tokenizer_path: str) -> None:
 
 def main():
     # 配置路径
-    data_path = "E:/Datasets/BelleGroup/train_3.5M_CN.json"
-    save_dir = "E:/happy_llm/docs/chapter5/code/tokenizer_k"
+    data_path = "Your_dataset_path.jsonl"  # 替换为你的数据集路径
+    save_dir = "Your_tokenizer_save_path"  # 替换为你希望保存tokenizer的路径
 
     # 训练tokenizer
     train_tokenizer(
