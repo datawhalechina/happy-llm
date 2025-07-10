@@ -30,10 +30,10 @@ def get_lr(it, all):
 
     if it < warmup_iters:
         return args.learning_rate * it / warmup_iters
-    
+
     if it > lr_decay_iters:
         return min_lr
-    
+
     decay_ratio = (it - warmup_iters) / (lr_decay_iters - warmup_iters)
     assert 0 <= decay_ratio <= 1
     coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio))
@@ -92,7 +92,7 @@ def train_epoch(epoch):
             state_dict = model.module.state_dict() if isinstance(model, torch.nn.DataParallel) else model.state_dict()
             torch.save(state_dict, ckp)
             model.train()
-        
+
         if (step + 1) % 20000 == 0:
             model.eval()
             ckp = f'{args.save_dir}/pretrain_{lm_config.dim}_{lm_config.n_layers}_{lm_config.vocab_size}_step{step+1}.pth'
@@ -109,13 +109,13 @@ def init_model():
     tokenizer = AutoTokenizer.from_pretrained('./tokenizer_k/')
 
     model = Transformer(lm_config)
-    
+
     # 多卡初始化
     num_gpus = torch.cuda.device_count()
     if num_gpus > 1:
         Logger(f"Using {num_gpus} GPUs with DataParallel!")
         model = torch.nn.DataParallel(model)
-    
+
     model = model.to(args.device)
     Logger(f'LLM总参数量：{count_parameters(model) / 1e6:.3f} 百万')
     return model, tokenizer
@@ -123,7 +123,7 @@ def init_model():
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Tiny-LLM Pretraining")
-    parser.add_argument("--out_dir", type=str, default="base_monkey_215M", help="Output directory")
+    parser.add_argument("--out_dir", type=str, default="E:/Models", help="Output directory")
     parser.add_argument("--epochs", type=int, default=1, help="Number of epochs")
     parser.add_argument("--batch_size", type=int, default=64, help="Batch size")
     parser.add_argument("--learning_rate", type=float, default=2e-4, help="Learning rate")
@@ -131,7 +131,7 @@ if __name__ == "__main__":
     parser.add_argument("--dtype", type=str, default="bfloat16", help="Data type")
     parser.add_argument("--use_swanlab", type=bool, default=True, help="Use Weights & Biases")
     parser.add_argument("--num_workers", type=int, default=8, help="Number of workers for data loading")
-    parser.add_argument("--data_path", type=str, default="", help="Path to training data")
+    parser.add_argument("--data_path", type=str, default="E:/PreTrained_Datasets/Monkey_pretrained.jsonl", help="Path to training data")
     parser.add_argument("--accumulation_steps", type=int, default=8, help="Gradient accumulation steps")
     parser.add_argument("--grad_clip", type=float, default=1.0, help="Gradient clipping threshold")
     parser.add_argument("--warmup_iters", type=int, default=0, help="Number of warmup iterations")
@@ -152,7 +152,7 @@ if __name__ == "__main__":
             args.device = "cpu"
 
     if args.use_swanlab:
-        swanlab.login(api_key='your key')
+        swanlab.login(api_key='9sNn4imsCg7GJUhNi9ZKF')
         run = swanlab.init(
             project="Tiny-LLM",
             experiment_name="Pretrain-215M",
@@ -173,7 +173,7 @@ if __name__ == "__main__":
     ctx = nullcontext() if device_type == "cpu" else torch.cuda.amp.autocast()
 
     model, tokenizer = init_model()
-    
+
     train_ds = PretrainDataset(args.data_path, tokenizer, max_length=max_seq_len)
     train_loader = DataLoader(
         train_ds,
