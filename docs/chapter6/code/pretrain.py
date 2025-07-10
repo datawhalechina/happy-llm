@@ -31,6 +31,7 @@ import datetime
 from transformers.testing_utils import CaptureLogger
 from transformers.trainer_utils import get_last_checkpoint
 import swanlab
+from transformers.utils import logging as transformers_logging
 
 
 logger = logging.getLogger(__name__)
@@ -74,7 +75,7 @@ class DataTrainingArguments:
     关于训练的参数
     """
 
-    train_files: Optional[List[str]]  = field(default=None, metadata={"help": "训练数据路径"})
+    train_files: Optional[List[str]] = field(default=None, metadata={"help": "训练数据路径"})
     block_size: Optional[int] = field(
         default=None,
         metadata={
@@ -88,7 +89,7 @@ class DataTrainingArguments:
         metadata={"help": "预处理使用线程数."},
     )
 
-                
+
 def main():
 
     # 加载脚本参数
@@ -97,7 +98,7 @@ def main():
 
     # 初始化 SwanLab
     swanlab.init(project="pretrain", experiment_name="from_scrach")
-    
+
     # 设置日志
     logging.basicConfig(
         format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
@@ -106,13 +107,13 @@ def main():
     )
 
     # 将日志级别设置为 INFO
-    transformers.utils.logging.set_verbosity_info()
+    transformers_logging.set_verbosity_info()
     log_level = training_args.get_process_log_level()
     logger.setLevel(log_level)
     datasets.utils.logging.set_verbosity(log_level)
-    transformers.utils.logging.set_verbosity(log_level)
-    transformers.utils.logging.enable_default_handler()
-    transformers.utils.logging.enable_explicit_format()
+    transformers_logging.set_verbosity(log_level)
+    transformers_logging.enable_default_handler()
+    transformers_logging.enable_explicit_format()
 
     # 训练整体情况记录
     logger.warning(
@@ -217,7 +218,7 @@ def main():
         result = {
             k: [t[i : i + block_size] for i in range(0, total_length, block_size)]
             for k, t in concatenated_examples.items()
-        }    
+        }
         result["labels"] = result["input_ids"].copy()
         return result
 
@@ -232,7 +233,7 @@ def main():
         )
         logger.info("完成数据预处理")
         train_dataset = lm_datasets["train"]
-    
+
     logger.info("初始化 Trainer")
     trainer = Trainer(
         model=model,
@@ -251,7 +252,7 @@ def main():
 
     logger.info("开始训练")
     train_result = trainer.train(resume_from_checkpoint=checkpoint)
-    trainer.save_model() 
+    trainer.save_model()
 
 if __name__ == "__main__":
     main()
