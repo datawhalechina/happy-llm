@@ -2,9 +2,9 @@
 # -*- coding: utf-8 -*-
 '''
 @File    :   utils.py
-@Time    :   2024/02/11 09:52:26
+@Time    :   2025/06/20 13:50:47
 @Author  :   不要葱姜蒜
-@Version :   1.0
+@Version :   1.1
 @Desc    :   None
 '''
 
@@ -13,7 +13,6 @@ from typing import Dict, List, Optional, Tuple, Union
 
 import PyPDF2
 import markdown
-import html2text
 import json
 from tqdm import tqdm
 import tiktoken
@@ -69,37 +68,65 @@ class ReadFiles:
         lines = text.splitlines()  # 假设以换行符分割文本为行
 
         for line in lines:
-            line = line.replace(' ', '')
+            # 保留空格，只移除行首行尾空格
+            line = line.strip()
             line_len = len(enc.encode(line))
+            
             if line_len > max_token_len:
                 # 如果单行长度就超过限制，则将其分割成多个块
-                num_chunks = (line_len + token_len - 1) // token_len
-                for i in range(num_chunks):
-                    start = i * token_len
-                    end = start + token_len
-                    # 避免跨单词分割
-                    while not line[start:end].rstrip().isspace():
-                        start += 1
-                        end += 1
-                        if start >= line_len:
-                            break
-                    curr_chunk = curr_chunk[-cover_content:] + line[start:end]
+                # 先保存当前块（如果有内容）
+                if curr_chunk:
                     chunk_text.append(curr_chunk)
-                # 处理最后一个块
-                start = (num_chunks - 1) * token_len
-                curr_chunk = curr_chunk[-cover_content:] + line[start:end]
-                chunk_text.append(curr_chunk)
+                    curr_chunk = ''
+                    curr_len = 0
                 
-            if curr_len + line_len <= token_len:
+                # 将长行按token长度分割
+                line_tokens = enc.encode(line)
+                num_chunks = (len(line_tokens) + token_len - 1) // token_len
+                
+                for i in range(num_chunks):
+                    start_token = i * token_len
+                    end_token = min(start_token + token_len, len(line_tokens))
+                    
+                    # 解码token片段回文本
+                    chunk_tokens = line_tokens[start_token:end_token]
+                    chunk_part = enc.decode(chunk_tokens)
+                    
+                    # 添加覆盖内容（除了第一个块）
+                    if i > 0 and chunk_text:
+                        prev_chunk = chunk_text[-1]
+                        cover_part = prev_chunk[-cover_content:] if len(prev_chunk) > cover_content else prev_chunk
+                        chunk_part = cover_part + chunk_part
+                    
+                    chunk_text.append(chunk_part)
+                
+                # 重置当前块状态
+                curr_chunk = ''
+                curr_len = 0
+                
+            elif curr_len + line_len + 1 <= token_len:  # +1 for newline
+                # 当前行可以加入当前块
+                if curr_chunk:
+                    curr_chunk += '\n'
+                    curr_len += 1
                 curr_chunk += line
-                curr_chunk += '\n'
                 curr_len += line_len
-                curr_len += 1
             else:
-                chunk_text.append(curr_chunk)
-                curr_chunk = curr_chunk[-cover_content:]+line
-                curr_len = line_len + cover_content
+                # 当前行无法加入当前块，开始新块
+                if curr_chunk:
+                    chunk_text.append(curr_chunk)
+                
+                # 开始新块，添加覆盖内容
+                if chunk_text:
+                    prev_chunk = chunk_text[-1]
+                    cover_part = prev_chunk[-cover_content:] if len(prev_chunk) > cover_content else prev_chunk
+                    curr_chunk = cover_part + '\n' + line
+                    curr_len = len(enc.encode(cover_part)) + 1 + line_len
+                else:
+                    curr_chunk = line
+                    curr_len = line_len
 
+        # 添加最后一个块（如果有内容）
         if curr_chunk:
             chunk_text.append(curr_chunk)
 

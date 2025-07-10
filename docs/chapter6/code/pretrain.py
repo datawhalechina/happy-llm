@@ -30,7 +30,7 @@ from transformers import (
 import datetime
 from transformers.testing_utils import CaptureLogger
 from transformers.trainer_utils import get_last_checkpoint
-import wandb
+import swanlab
 
 
 logger = logging.getLogger(__name__)
@@ -95,8 +95,8 @@ def main():
     parser = HfArgumentParser((ModelArguments, DataTrainingArguments, TrainingArguments))
     model_args, data_args, training_args = parser.parse_args_into_dataclasses()
 
-    # 初始化 WandB
-    wandb.init(project="pretrain", name="from_scrach")
+    # 初始化 SwanLab
+    swanlab.init(project="pretrain", experiment_name="from_scrach")
     
     # 设置日志
     logging.basicConfig(

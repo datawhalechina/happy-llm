@@ -22,6 +22,6 @@ deepspeed finetune.py \
     --bf16 \
     --gradient_checkpointing \
     --deepspeed ./ds_config_zero2.json \
-    --report_to wandb
+    --report_to swanlab
     
     # --resume_from_checkpoint ${output_model}/checkpoint-20400 \

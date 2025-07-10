@@ -4,11 +4,12 @@
 </div>
 
 <div align="center">
-  <img src="https://img.shields.io/github/stars/datawhalechina/happy-llm?style=for-the-badge&logo=github" alt="GitHub stars"/>
-  <img src="https://img.shields.io/github/forks/datawhalechina/happy-llm?style=for-the-badge&logo=github" alt="GitHub forks"/>
-  <img src="https://img.shields.io/badge/language-English-brightgreen?style=for-the-badge" alt="Language"/>
+  <img src="https://img.shields.io/github/stars/datawhalechina/happy-llm?style=flat&logo=github" alt="GitHub stars"/>
+  <img src="https://img.shields.io/github/forks/datawhalechina/happy-llm?style=flat&logo=github" alt="GitHub forks"/>
+  <img src="https://img.shields.io/badge/language-Chinese-brightgreen?style=flat" alt="Language"/>
+  <a href="https://github.com/datawhalechina/happy-llm"><img src="https://img.shields.io/badge/GitHub-Project-blue?style=flat&logo=github" alt="GitHub Project"></a>
+  <a href="https://swanlab.cn/@kmno4/Happy-LLM/overview"><img src="https://raw.githubusercontent.com/SwanHubX/assets/main/badge1.svg" alt="SwanLab"></a>
 </div>
-
 <div align="center">
 
 [中文](./README.md) | [English](./README_en.md)
@@ -16,6 +17,7 @@
 </div>
 
 <div align="center">
+  <p><a href="https://datawhalechina.github.io/happy-llm/">📚 Online Reading</a></p>
   <h3>📚 A Comprehensive Tutorial on Large Language Model Principles and Practice from Scratch</h3>
   <p><em>Deep understanding of LLM core principles, hands-on implementation of your first large model</em></p>
 </div>
@@ -48,8 +50,25 @@
 | [Chapter 3: Pre-trained Language Models](./docs/chapter3/第三章%20预训练语言模型.md) | Comparison of Encoder-only, Encoder-Decoder, Decoder-Only models | ✅ |
 | [Chapter 4: Large Language Models](./docs/chapter4/第四章%20大语言模型.md) | LLM definition, training strategies, emergent ability analysis | ✅ |
 | [Chapter 5: Building Large Models from Scratch](./docs/chapter5/第五章%20动手搭建大模型.md) | Implementing LLaMA2, training Tokenizer, pre-training small LLM | ✅ |
-| [Chapter 6: Large Model Training Practice](./docs/chapter6/第六章%20大模型训练流程实践.md) | Pre-training, supervised fine-tuning, LoRA/QLoRA efficient fine-tuning | ✅ |
+| [Chapter 6: Large Model Training Practice](./docs/chapter6/第六章%20大模型训练流程实践.md) | Pre-training, supervised fine-tuning, LoRA/QLoRA efficient fine-tuning | 🚧 |
 | [Chapter 7: Large Model Applications](./docs/chapter7/第七章%20大模型应用.md) | Model evaluation, RAG retrieval enhancement, Agent intelligent agents | ✅ |
+
+### Model Downloads
+
+| Model Name | Download Link |
+| --- | --- |
+| Happy-LLM-Chapter5-Base-215M | [🤖 ModelScope](https://www.modelscope.cn/models/kmno4zx/happy-llm-215M-base) |
+| Happy-LLM-Chapter5-SFT-215M | [🤖 ModelScope](https://www.modelscope.cn/models/kmno4zx/happy-llm-215M-sft) |
+
+> *ModelScope Studio Experience: [🤖 Studio](https://www.modelscope.cn/studios/kmno4zx/happy_llm_215M_sft)*
+
+
+### PDF Version Download
+
+&emsp;&emsp;***This Happy-LLM PDF tutorial is completely open source and free. To prevent various marketing accounts from adding watermarks and selling to LLM beginners, we have pre-added Datawhale open source logo watermarks that do not affect reading in the PDF files. Please understand~***
+
+> *Happy-LLM PDF : https://github.com/datawhalechina/happy-llm/releases/tag/PDF*  
+> *Happy-LLM PDF Domestic Download: https://www.datawhale.cn/learn/summary/179*
 
 ## 💡 How to Learn
 
@@ -90,7 +109,7 @@ We welcome any form of contribution!
 ## Star History
 
 <div align='center'>
-    <img src="./images/star-history-2025612.png" alt="Datawhale" width="90%">
+    <img src="./images/star-history-202575.png" alt="Datawhale" width="90%">
 </div>
 
 <div align="center">
@@ -101,8 +120,14 @@ We welcome any form of contribution!
 
 <div align='center'>
     <img src="./images/datawhale.png" alt="Datawhale" width="30%">
-    <p>Scan the QR code to follow Datawhale WeChat Official Account for more quality open-source content</p>
+    <p>Scan the QR code to follow Datawhale WeChat Official Account for more quality open source content</p>
 </div>
+
+---
+
+## 📜 Open Source License
+
+This work is licensed under a [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License](http://creativecommons.org/licenses/by-nc-sa/4.0/).
 
 ---
 

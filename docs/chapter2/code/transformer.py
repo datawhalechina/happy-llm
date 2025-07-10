@@ -25,7 +25,7 @@ class MultiHeadAttention(nn.Module):
         # args: 配置对象
         super().__init__()
         # 隐藏层维度必须是头数的整数倍，因为后面我们会将输入拆成头数个矩阵
-        assert args.n_embd % args.n_heads == 0
+        assert args.dim % args.n_heads == 0
         # 模型并行处理大小，默认为1。
         model_parallel_size = 1
         # 本地计算头数，等于总头数除以模型并行处理大小。
@@ -39,7 +39,7 @@ class MultiHeadAttention(nn.Module):
         self.wq = nn.Linear(args.n_embd, args.n_heads * self.head_dim, bias=False)
         self.wk = nn.Linear(args.n_embd, args.n_heads * self.head_dim, bias=False)
         self.wv = nn.Linear(args.n_embd, args.n_heads * self.head_dim, bias=False)
-        # 输出权重矩阵，维度为 n_embd x n_embd（head_dim = n_embeds / n_heads）
+        # 输出权重矩阵，维度为 dim x n_embd（head_dim = n_embeds / n_heads）
         self.wo = nn.Linear(args.n_heads * self.head_dim, args.dim, bias=False)
         # 注意力的 dropout
         self.attn_dropout = nn.Dropout(args.dropout)

@@ -6,7 +6,6 @@ import pandas as pd
 import numpy as np
 from torch.utils.data import Dataset, DataLoader
 import torch
-from sklearn.model_selection import train_test_split
 import os
     
 class PretrainDataset(Dataset):
@@ -56,7 +55,7 @@ class SFTDataset(Dataset):
     def generate_loss_mask(self, input_ids):
         # 生成 loss mask, 0 表示不计算损失, 1 表示计算损失
         mask = [0] * len(input_ids)
-        a_sequence = [3, 1074, 537, 500, 203]  # <|im_start|>assistant\n
+        a_sequence = self.tokenizer("<|im_start|>assistant\n")['input_ids']  # <|im_start|>assistant\n
         a_length = len(a_sequence)
         n = len(input_ids)
         i = 0
@@ -69,10 +68,10 @@ class SFTDataset(Dataset):
                     match = False
                     break
             if match:
-                # 从子序列结束的位置开始查找第一个4
+                # 从子序列结束的位置开始查找第一个 4 (eos_token_id)
                 j = None
                 for idx in range(i + a_length, n):
-                    if input_ids[idx] == 4:
+                    if input_ids[idx] == self.tokenizer.eos_token_id:
                         j = idx
                         break
                 if j is not None:
