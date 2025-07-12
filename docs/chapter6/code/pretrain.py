@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from torchdata.datapipes.iter import IterableWrapper
 from itertools import chain
 import deepspeed
-from typing import Optional,List
+from typing import Optional, List
 
 import datasets
 import pandas as pd
@@ -31,7 +31,7 @@ import datetime
 from transformers.testing_utils import CaptureLogger
 from transformers.trainer_utils import get_last_checkpoint
 import swanlab
-
+from transformers.utils import logging as transformers_logging
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +74,7 @@ class DataTrainingArguments:
     关于训练的参数
     """
 
-    train_files: Optional[List[str]]  = field(default=None, metadata={"help": "训练数据路径"})
+    train_files: Optional[List[str]] = field(default=None, metadata={"help": "训练数据路径"})
     block_size: Optional[int] = field(
         default=None,
         metadata={
@@ -88,16 +88,15 @@ class DataTrainingArguments:
         metadata={"help": "预处理使用线程数."},
     )
 
-                
-def main():
 
+def main():
     # 加载脚本参数
     parser = HfArgumentParser((ModelArguments, DataTrainingArguments, TrainingArguments))
     model_args, data_args, training_args = parser.parse_args_into_dataclasses()
 
     # 初始化 SwanLab
     swanlab.init(project="pretrain", experiment_name="from_scrach")
-    
+
     # 设置日志
     logging.basicConfig(
         format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
@@ -106,13 +105,13 @@ def main():
     )
 
     # 将日志级别设置为 INFO
-    transformers.utils.logging.set_verbosity_info()
+    transformers_logging.set_verbosity_info()
     log_level = training_args.get_process_log_level()
     logger.setLevel(log_level)
     datasets.utils.logging.set_verbosity(log_level)
-    transformers.utils.logging.set_verbosity(log_level)
-    transformers.utils.logging.enable_default_handler()
-    transformers.utils.logging.enable_explicit_format()
+    transformers_logging.set_verbosity(log_level)
+    transformers_logging.enable_default_handler()
+    transformers_logging.enable_explicit_format()
 
     # 训练整体情况记录
     logger.warning(
@@ -144,15 +143,15 @@ def main():
         logger.warning("你正在从零初始化一个模型")
         logger.info(f"模型参数配置地址：{model_args.config_name}")
         logger.info(f"模型参数：{config}")
-        model = AutoModelForCausalLM.from_config(config,trust_remote_code=True)
+        model = AutoModelForCausalLM.from_config(config, trust_remote_code=True)
         n_params = sum({p.data_ptr(): p.numel() for p in model.parameters()}.values())
-        logger.info(f"预训练一个新模型 - Total size={n_params/2**20:.2f}M params")
+        logger.info(f"预训练一个新模型 - Total size={n_params / 2 ** 20:.2f}M params")
     elif model_args.model_name_or_path is not None:
         logger.warning("你正在初始化一个预训练模型")
         logger.info(f"模型参数地址：{model_args.model_name_or_path}")
-        model = AutoModelForCausalLM.from_pretrained(model_args.model_name_or_path,trust_remote_code=True)
+        model = AutoModelForCausalLM.from_pretrained(model_args.model_name_or_path, trust_remote_code=True)
         n_params = sum({p.data_ptr(): p.numel() for p in model.parameters()}.values())
-        logger.info(f"继承一个预训练模型 - Total size={n_params/2**20:.2f}M params")
+        logger.info(f"继承一个预训练模型 - Total size={n_params / 2 ** 20:.2f}M params")
     else:
         logger.error("config_name 和 model_name_or_path 不能均为空")
         raise ValueError("config_name 和 model_name_or_path 不能均为空")
@@ -215,9 +214,9 @@ def main():
         if total_length >= block_size:
             total_length = (total_length // block_size) * block_size
         result = {
-            k: [t[i : i + block_size] for i in range(0, total_length, block_size)]
+            k: [t[i: i + block_size] for i in range(0, total_length, block_size)]
             for k, t in concatenated_examples.items()
-        }    
+        }
         result["labels"] = result["input_ids"].copy()
         return result
 
@@ -228,16 +227,16 @@ def main():
             num_proc=data_args.preprocessing_num_workers,
             load_from_cache_file=True,
             desc=f"文本分块到{block_size}",
-            batch_size = 40000,
+            batch_size=40000,
         )
         logger.info("完成数据预处理")
         train_dataset = lm_datasets["train"]
-    
+
     logger.info("初始化 Trainer")
     trainer = Trainer(
         model=model,
         args=training_args,
-        train_dataset= IterableWrapper(train_dataset),
+        train_dataset=IterableWrapper(train_dataset),
         tokenizer=tokenizer,
         data_collator=default_data_collator
     )
@@ -247,11 +246,12 @@ def main():
     if training_args.resume_from_checkpoint is not None:
         checkpoint = training_args.resume_from_checkpoint
     elif last_checkpoint is not None:
-            checkpoint = last_checkpoint
+        checkpoint = last_checkpoint
 
     logger.info("开始训练")
     train_result = trainer.train(resume_from_checkpoint=checkpoint)
-    trainer.save_model() 
+    trainer.save_model()
+
 
 if __name__ == "__main__":
     main()

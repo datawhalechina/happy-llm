@@ -14,6 +14,7 @@ from typing import Generator
 
 random.seed(42)
 
+
 def read_texts_from_jsonl(file_path: str) -> Generator[str, None, None]:
     """读取JSONL文件并安全提取文本数据"""
     with open(file_path, 'r', encoding='utf-8') as f:
@@ -29,6 +30,7 @@ def read_texts_from_jsonl(file_path: str) -> Generator[str, None, None]:
             except KeyError as e:
                 print(e)
                 continue
+
 
 def create_tokenizer_config(save_dir: str) -> None:
     """创建完整的tokenizer配置文件"""
@@ -74,10 +76,11 @@ def create_tokenizer_config(save_dir: str) -> None:
     with open(os.path.join(save_dir, "special_tokens_map.json"), "w", encoding="utf-8") as f:
         json.dump(special_tokens_map, f, ensure_ascii=False, indent=4)
 
+
 def train_tokenizer(data_path: str, save_dir: str, vocab_size: int = 8192) -> None:
     """训练并保存自定义tokenizer"""
     os.makedirs(save_dir, exist_ok=True)
-    
+
     # 初始化tokenizer
     tokenizer = Tokenizer(models.BPE(unk_token="<unk>"))
     tokenizer.normalizer = NFKC()  # 添加文本规范化
@@ -86,10 +89,10 @@ def train_tokenizer(data_path: str, save_dir: str, vocab_size: int = 8192) -> No
 
     # 配置特殊token
     special_tokens = [
-        "<unk>", 
-        "<s>", 
-        "</s>", 
-        "<|im_start|>", 
+        "<unk>",
+        "<s>",
+        "</s>",
+        "<|im_start|>",
         "<|im_end|>"
     ]
 
@@ -120,10 +123,11 @@ def train_tokenizer(data_path: str, save_dir: str, vocab_size: int = 8192) -> No
 
     # 保存tokenizer文件
     tokenizer.save(os.path.join(save_dir, "tokenizer.json"))
-    
+
     # 创建配置文件
     create_tokenizer_config(save_dir)
     print(f"Tokenizer saved to {save_dir}")
+
 
 def eval_tokenizer(tokenizer_path: str) -> None:
     """评估tokenizer功能"""
@@ -147,11 +151,11 @@ def eval_tokenizer(tokenizer_path: str) -> None:
         {"role": "user", "content": "I'm good too."},
         {"role": "assistant", "content": "That's great to hear!"},
     ]
-    
+
     print("\n=== 聊天模板测试 ===")
     prompt = tokenizer.apply_chat_template(
-        messages, 
-        tokenize=False, 
+        messages,
+        tokenize=False,
         # add_generation_prompt=True
     )
     print("Generated prompt:\n", prompt, sep="")
@@ -171,10 +175,11 @@ def eval_tokenizer(tokenizer_path: str) -> None:
     print(f"Decoded:  {decoded}")
     print("Special tokens preserved:", decoded == test_text)
 
+
 def main():
     # 配置路径
-    data_path = "your data path"
-    save_dir = "tokenizer_k"
+    data_path = "Your_dataset_path.jsonl"  # 替换为你的数据集路径
+    save_dir = "Your_tokenizer_save_path"  # 替换为你希望保存tokenizer的路径
 
     # 训练tokenizer
     train_tokenizer(
@@ -185,6 +190,7 @@ def main():
 
     # 评估tokenizer
     eval_tokenizer(save_dir)
+
 
 if __name__ == '__main__':
     main()
