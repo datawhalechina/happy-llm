@@ -67,9 +67,9 @@ NLP 的早期探索始于二战后，当时人们认识到将一种语言自动�
 子词切分的方法有很多种，常见的有Byte Pair Encoding (BPE)、WordPiece、Unigram、SentencePiece等。这些方法的基本思想是将单词分解成更小的、频繁出现的片段，这些片段可以是单个字符、字符组合或者词根和词缀。
 
 ```
-输出：unhappiness
+输入：unhappiness
 
-不使用子词切分：整个单词作为一个单位：“unhappiness”
+不使用子词切分：整个单词作为一个单位，输出：“unhappiness”
 使用子词切分（假设BPE算法）：单词被分割为：“un”、“happi”、“ness”
 ```
 
