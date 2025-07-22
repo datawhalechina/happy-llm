@@ -133,7 +133,7 @@ def attention(query, key, value, dropout=None):
     value: 真值矩阵
     '''
     # 获取键向量的维度，键向量的维度和值向量的维度相同
-    d_k = query.size(-1) 
+    d_k = key.size(-1) 
     # 计算Q与K的内积并除以根号dk
     # transpose——相当于转置
     scores = torch.matmul(query, key.transpose(-2, -1)) / math.sqrt(d_k)
