@@ -9,21 +9,21 @@
 - 前馈神经网络（Feedforward Neural Network，FNN），即每一层的神经元都和上下两层的每一个神经元完全连接，如图2.1所示:
 
 <div align="center">
-  <img src="https://raw.githubusercontent.com/datawhalechina/happy-llm/main/docs/images/2-figures/1-0.png" alt="图片描述" width="90%"/>
+  <img src="./images/2-figures/1-0.png" alt="前馈神经网络" width="90%"/>
   <p>图2.1 前馈神经网络</p>
 </div>
 
 - 卷积神经网络（Convolutional Neural Network，CNN），即训练参数量远小于前馈神经网络的卷积层来进行特征提取和学习，如图2.2所示:
 
 <div align="center">
-  <img src="https://raw.githubusercontent.com/datawhalechina/happy-llm/main/docs/images/2-figures/1-1.png" alt="图片描述" width="90%"/>
+  <img src="./images/2-figures/1-1.png" alt="卷积神经网络" width="90%"/>
   <p>图2.2 卷积神经网络</p>
 </div>
 
 - 循环神经网络（Recurrent Neural Network，RNN），能够使用历史信息作为输入、包含环和自重复的网络，如图2.3所示:
 
 <div align="center">
-  <img src="https://raw.githubusercontent.com/datawhalechina/happy-llm/main/docs/images/2-figures/1-2.png" alt="图片描述" width="90%"/>
+  <img src="./images/2-figures/1-2.png" alt="循环神经网络" width="90%"/>
   <p>图2.3 循环神经网络</p>
 </div>
 
@@ -222,7 +222,7 @@ scores = F.softmax(scores.float(), dim=-1).type_as(xq)
 在原论文中，作者也通过实验证实，多头注意力计算中，每个不同的注意力头能够拟合语句中的不同信息，如图2.4所示：
 
 <div align="center">
-  <img src="https://raw.githubusercontent.com/datawhalechina/happy-llm/main/docs/images/2-figures/1-3.jpeg" alt="图片描述" width="90%"/>
+  <img src="./images/2-figures/1-3.jpeg" alt="多头注意力机制" width="90%"/>
   <p>图2.4 多头注意力机制</p>
 </div>
 
@@ -346,7 +346,7 @@ Seq2Seq，即序列到序列，是一种经典 NLP 任务。具体而言，是�
 Transformer 中的 Encoder，就是用于上述的编码过程；Decoder 则用于上述的解码过程。Transformer 结构，如图2.5所示：
 
 <div align="center">
-  <img src="https://raw.githubusercontent.com/datawhalechina/happy-llm/main/docs/images/2-figures/2-0.jpg" alt="图片描述" width="90%"/>
+  <img src="./images/2-figures/2-0.jpg" alt="编码器-解码器结构" width="90%"/>
   <p>图2.5 编码器-解码器结构</p>
 </div>
 
@@ -732,7 +732,7 @@ $$
 上述​编码结果，如图2.6所示：
 
 <div align="center">
-  <img src="https://raw.githubusercontent.com/datawhalechina/happy-llm/main/docs/images/2-figures/3-0.png" alt="图片描述" width="90%"/>
+  <img src="./images/2-figures/3-0.png" alt="编码结果" width="90%"/>
   <p>图2.6 编码结果</p>
 </div>
 
@@ -773,7 +773,7 @@ class PositionalEncoding(nn.Module):
 上述所有组件，再按照下图的 Tranfromer 结构拼接起来就是一个完整的 Transformer 模型了，如图2.7所示：
 
 <div align="center">
-  <img src="https://raw.githubusercontent.com/datawhalechina/happy-llm/main/docs/images/2-figures/3-1.png" alt="图片描述" width="80%"/>
+  <img src="./images/2-figures/3-1.png" alt="Transformer 模型结构" width="80%"/>
   <p>图2.7 Transformer 模型结构</p>
 </div>
 
