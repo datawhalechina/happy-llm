@@ -12,6 +12,7 @@ W \in \mathbb{R}^{d_{\text{out}} \times d_{\text{in}}}
 $$
 
 LoRA 的做法是：**不直接更新大模型参数W**，而是在其旁边**插入一个低秩矩阵BA**，作为可训练的残差项：
+
 $$y = W x + BAx$$
 
 其中：
@@ -23,7 +24,7 @@ $$ r \ll d_{\text{in}}, d_{\text{out}} $$
 
 原先微调需要更新整个$W$，其参数量为
 
-$\text{Param}(W) = d_{\text{out}} \times d_{\text{in}}$，使用LoRA后，$B A$的参数量仅为$\text{Param}_{\text{LoRA}} = r \times d_{\text{in}} + d_{\text{out}} \times r = r (d_{\text{in}} + d_{\text{out}})$
+$$\text{Param}(W) = d_{\text{out}} \times d_{\text{in}}$，使用LoRA后，$B A$的参数量仅为$\text{Param}_{\text{LoRA}} = r \times d_{\text{in}} + d_{\text{out}} \times r = r (d_{\text{in}} + d_{\text{out}})$$
 
 使用PyTorch实现LoRA类，如下：
 ```python
