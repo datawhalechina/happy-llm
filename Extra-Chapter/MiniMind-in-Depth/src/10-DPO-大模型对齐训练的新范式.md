@@ -201,6 +201,7 @@ $$
 在上述公式的log差值项中，前一个表示模型对于人类偏好`chosen`回复$y^+$的对数概率，后一个表示模型对于`rejected`回复$y^-$的对数概率，DPO loss的目标是最大化两者的差值，也就是鼓励模型$\pi$相较于$\pi_\text{ref}$更加偏好$y^+$而非$y^-$。其中除以$\pi_\text{ref}$的作用是作为一个正则化因子，确保训练后的模型过度偏离原始模型。
 
 在MiniMind的代码实现中，根据对数运算的性质，调换了DPO loss中的对数项顺序，如下：
+
 $$
 \mathcal{L}_{\text{DPO}} = \mathbb{E}_{(x, y^+, y^-) \sim \mathcal{D}} \left[ -\log \sigma \left( \beta \cdot \left( \log \frac{\pi(y^+|x)}{\pi(y^-|x)} - \log \frac{\pi_{\text{ref}}(y^+|x)}{\pi_{\text{ref}}(y^-|x)} \right) \right) \right]
 $$
