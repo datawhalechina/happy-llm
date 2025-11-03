@@ -51,6 +51,7 @@ print(output.shape)# torch.Size([1, 2, 4])
 可以看到，RMSNorm和LayerNorm一样，归一化操作都是沿着每个token内部的特征维度（也就是输入x的embedding_dim维度）进行的，而不是沿着整个batch维度。这意味着它们对每个token都进行独立的标准化，而不是跨batch的归一化。
 
 同时，相较于LayerNorm，RMSNorm不做 **减均值**的操作。这里把LayerNorm的计算公式和实现代码搬过来做一下对比：
+
 $$
 \text{LayerNorm}(\mathbf{x}) = \gamma \left( \frac{\mathbf{x} - \mu}{\sqrt{\sigma^2 + \epsilon}} \right) + \beta
 $$
