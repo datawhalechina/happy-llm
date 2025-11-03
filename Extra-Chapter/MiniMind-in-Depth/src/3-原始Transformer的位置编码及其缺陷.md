@@ -7,19 +7,12 @@ PE_{(pos, 2i)} = \sin\left(\frac{pos}{10000^{2i/d_{\text{model}}}}\right) \\
 PE_{(pos, 2i+1)} = \cos\left(\frac{pos}{10000^{2i/d_{\text{model}}}}\right)
 ```
 
-其中，`pos`表示 token 在序列中的位置，取值范围为[0, 1, 2, ..., seq_len-1]；`i`表示embedding的维度索引，范围为$[0, 1, ..., d_{model}/2 - 1]$，`i`的所有取值总共有$d_{model}/2$个，每一个都分别通过施加sin或cos变换来对应某个token的embedding不同位置的偶数维与奇数维。
+其中：
+- `pos` 表示 token 在序列中的位置，取值范围为 `[0, 1, 2, ..., seq_len-1]`
+- `i` 表示 embedding 的维度索引，范围为 `[0, 1, ..., d_model/2 - 1]`
+- `i` 的所有取值总共有 `d_model/2` 个
+- 每个 `i` 分别通过施加 sin 或 cos 变换，对应 token embedding 不同位置的偶数维与奇数维
 
-其中，`pos` 表示 token 在序列中的位置，取值范围为 `[0, 1, 2, ..., seq_len-1]`；`i` 表示 embedding 的维度索引，范围为：
-
-```math
-[0, 1, ..., d_{\text{model}}/2 - 1]
-```
-
-`i` 的所有取值总共有：
-```math
-d_{\text{model}}/2
-```
-个
 
 为了便于理解，这里来举个实际的例子来演示正余弦位置编码的工作原理。
 
