@@ -16,6 +16,7 @@ LoRA 的做法是：**不直接更新大模型参数W**，而是在其旁边**�
 $$y = W x + BAx$$
 
 其中：
+
 $$ A \in \mathbb{R}^{r \times d_{\text{in}}} $$
 
 $$ B \in \mathbb{R}^{d_{\text{out}} \times r} $$
