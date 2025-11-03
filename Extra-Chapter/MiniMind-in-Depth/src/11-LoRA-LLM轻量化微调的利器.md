@@ -16,10 +16,14 @@ $$y = W x + BAx$$
 
 其中：
 $$ A \in \mathbb{R}^{r \times d_{\text{in}}} $$
+
 $$ B \in \mathbb{R}^{d_{\text{out}} \times r} $$
+
 $$ r \ll d_{\text{in}}, d_{\text{out}} $$
 
-原先微调需要更新整个$W$，其参数量为$\text{Param}(W) = d_{\text{out}} \times d_{\text{in}}$，使用LoRA后，$B A$的参数量仅为$\text{Param}_{\text{LoRA}} = r \times d_{\text{in}} + d_{\text{out}} \times r = r (d_{\text{in}} + d_{\text{out}})$
+原先微调需要更新整个$W$，其参数量为
+
+$\text{Param}(W) = d_{\text{out}} \times d_{\text{in}}$，使用LoRA后，$B A$的参数量仅为$\text{Param}_{\text{LoRA}} = r \times d_{\text{in}} + d_{\text{out}} \times r = r (d_{\text{in}} + d_{\text{out}})$
 
 使用PyTorch实现LoRA类，如下：
 ```python
