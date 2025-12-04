@@ -119,7 +119,7 @@
 ## 🙏 致谢
 
 ### 核心贡献者
-- [宋志学-项目负责人](https://github.com/KMnO4-zx) (Datawhale成员-中国矿业大学(北京))
+- [宋志学-项目负责人](https://github.com/KMnO4-zx) (Datawhale成员)
 - [邹雨衡-项目负责人](https://github.com/logan-zou) (Datawhale成员-对外经济贸易大学)
 - [朱信忠-指导专家](https://xinzhongzhu.github.io/)（Datawhale首席科学家-浙江师范大学杭州人工智能研究院教授）
 
