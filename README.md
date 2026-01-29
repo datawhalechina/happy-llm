@@ -93,7 +93,11 @@
 
 &emsp;&emsp;***本 Happy-LLM PDF 教程完全开源免费。为防止各类营销号加水印后贩卖给大模型初学者，我们特地在 PDF 文件中预先添加了不影响阅读的 Datawhale 开源标志水印，敬请谅解～***
 
-> *Happy-LLM PDF : https://github.com/datawhalechina/happy-llm/releases/tag/v1.0.1*  
+> *Happy-LLM PDF : https://github.com/datawhalechina/happy-llm/releases/tag/v1.0.2*  
+
+### PPT 资源下载
+
+&emsp;&emsp;***本项目配套教学讲义PPT课件资源获取链接：https://github.com/HZAI-ZJNU/happy-llm-ppt 或可在本项目的 [Releases](https://github.com/datawhalechina/happy-llm/releases) 页面下载。***
 
 ## 💡 如何学习
 
