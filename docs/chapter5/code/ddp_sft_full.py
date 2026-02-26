@@ -127,6 +127,8 @@ def init_model():
 
     # 加载分词器
     tokenizer = AutoTokenizer.from_pretrained('./tokenizer_k/')
+    if tokenizer.pad_token_id is not None:
+        lm_config.pad_token_id = tokenizer.pad_token_id
 
     # 初始化模型
     model = Transformer(lm_config)

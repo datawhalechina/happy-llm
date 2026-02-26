@@ -33,10 +33,18 @@ class TextGenerator:
         # 根据 dtype 选择适当的自动混合精度上下文
         ptdtype = {'float32': torch.float32, 'bfloat16': torch.bfloat16, 'float16': torch.float16}[self.dtype]
         self.ctx = nullcontext() if self.device_type == 'cpu' else torch.amp.autocast(device_type=self.device_type, dtype=ptdtype)
-        
+        # 初始化分词器
+        self.tokenizer = AutoTokenizer.from_pretrained(self.tokenizer_model_path)  # 根据指定的路径加载分词器
+
         # 加载模型检查点文件
         checkpoint_dict = torch.load(self.checkpoint, map_location=self.device)  # 加载模型参数 # 初始化模型参数
-        self.model = Transformer(ModelConfig(dim=1024, n_layers=18))  # 实例化 Transformer 模型
+        self.model = Transformer(
+            ModelConfig(
+                dim=1024,
+                n_layers=18,
+                pad_token_id=self.tokenizer.pad_token_id if self.tokenizer.pad_token_id is not None else 0
+            )
+        )  # 实例化 Transformer 模型
         sunwanted_prefix = '_orig_mod.'
         for k, v in list(checkpoint_dict.items()):
             if k.startswith(sunwanted_prefix):
@@ -50,8 +58,6 @@ class TextGenerator:
         self.model.eval()
         # 将模型放置到正确的设备上（GPU 或 CPU）
         self.model.to(self.device)
-        # 初始化分词器
-        self.tokenizer = AutoTokenizer.from_pretrained(self.tokenizer_model_path)  # 根据指定的路径加载分词器
 
     def chat_template(self, prompt):
         message = [

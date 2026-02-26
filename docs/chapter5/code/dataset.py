@@ -13,7 +13,7 @@ class PretrainDataset(Dataset):
         self.data_path = data_path
         self.tokenizer = tokenizer
         self.max_length = max_length
-        self.padding = 0
+        self.padding = tokenizer.pad_token_id if tokenizer.pad_token_id is not None else 0
         # 预计算每行的起始字节偏移量
         self._offsets = []
         with open(data_path, 'rb') as f:
@@ -51,7 +51,7 @@ class SFTDataset(Dataset):
         self.data_path = data_path
         self.tokenizer = tokenizer
         self.max_length = max_length
-        self.padding = 0
+        self.padding = tokenizer.pad_token_id if tokenizer.pad_token_id is not None else 0
         self._offsets = []
         with open(data_path, 'rb') as f:
             self._offsets.append(0)
