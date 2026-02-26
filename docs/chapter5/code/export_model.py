@@ -15,6 +15,15 @@ def export_model(tokenizer_path, model_config, model_ckpt_path, save_directory):
     ModelConfig.register_for_auto_class()
     Transformer.register_for_auto_class("AutoModelForCausalLM")
 
+    # 加载tokenizer
+    tokenizer = AutoTokenizer.from_pretrained(
+        tokenizer_path,
+        trust_remote_code=True,
+        use_fast=False
+    )
+    if tokenizer.pad_token_id is not None:
+        model_config.pad_token_id = tokenizer.pad_token_id
+
     # 初始化模型
     model = Transformer(model_config)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -30,13 +39,6 @@ def export_model(tokenizer_path, model_config, model_ckpt_path, save_directory):
     # 加载权重到模型
     model.load_state_dict(state_dict, strict=False)
     print(f'模型参数: {count_parameters(model)/1e6:.2f}M = {count_parameters(model)/1e9:.2f}B')
-
-    # 加载tokenizer
-    tokenizer = AutoTokenizer.from_pretrained(
-        tokenizer_path,
-        trust_remote_code=True,
-        use_fast=False
-    )
 
     # 保存完整模型和tokenizer
     model.save_pretrained(save_directory, safe_serialization=False)

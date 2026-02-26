@@ -196,6 +196,8 @@ def init_model():
 
     # 从本地路径加载预训练的分词器
     tokenizer = AutoTokenizer.from_pretrained('./tokenizer_k/')
+    if tokenizer.pad_token_id is not None:
+        lm_config.pad_token_id = tokenizer.pad_token_id
 
     # 根据配置创建Transformer模型
     model = Transformer(lm_config)
