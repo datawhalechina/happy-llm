@@ -32,8 +32,8 @@ class ReadFiles:
         self.file_list = self.get_files()
 
     def get_files(self):
-        file_list=[]
-        for file_path,dir_names,file_names in os.walk(self.path):
+        file_list = []
+        for file_path,dir_names,file_names in os.walk(self._path):
             for file_name in file_names:
                 if any([file_name.endswith(suffix) for suffix in [".md",".pdf",".txt"]]):
                     file_list.append(os.path.join(file_path,file_name))
@@ -174,4 +174,5 @@ class Documents:
         with open(self.path, mode='r', encoding='utf-8') as f:
             content = json.load(f)
         return content
+
 
