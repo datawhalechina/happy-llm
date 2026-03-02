@@ -257,14 +257,14 @@ class MultiHeadAttention(nn.Module):
         self.head_dim = args.dim // args.n_heads
         self.n_heads = args.n_heads
 
-        # Wq, Wk, Wv 参数矩阵，每个参数矩阵为 n_embd x dim
+        # Wq, Wk, Wv 参数矩阵，每个参数矩阵为 dim x dim, dim = n_heads * head_dim
         # 这里通过三个组合矩阵来代替了n个参数矩阵的组合，其逻辑在于矩阵内积再拼接其实等同于拼接矩阵再内积，
         # 不理解的读者可以自行模拟一下，每一个线性层其实相当于n个参数矩阵的拼接
-        self.wq = nn.Linear(args.n_embd, self.n_heads * self.head_dim, bias=False)
-        self.wk = nn.Linear(args.n_embd, self.n_heads * self.head_dim, bias=False)
-        self.wv = nn.Linear(args.n_embd, self.n_heads * self.head_dim, bias=False)
+        self.wq = nn.Linear(args.dim, args.dim, bias=False)
+        self.wk = nn.Linear(args.dim, args.dim, bias=False)
+        self.wv = nn.Linear(args.dim, args.dim, bias=False)
         # 输出权重矩阵，维度为 dim x dim（head_dim = dim / n_heads）
-        self.wo = nn.Linear(self.n_heads * self.head_dim, args.dim, bias=False)
+        self.wo = nn.Linear(args.dim, args.dim, bias=False)
         # 注意力的 dropout
         self.attn_dropout = nn.Dropout(args.dropout)
         # 残差连接的 dropout
@@ -418,11 +418,11 @@ $$
 ```python
 class LayerNorm(nn.Module):
     ''' Layer Norm 层'''
-    def __init__(self, features, eps=1e-6):
+    def __init__(self, dim, eps=1e-6):
         super().__init__()
         # 线性矩阵做映射
-        self.a_2 = nn.Parameter(torch.ones(features))
-        self.b_2 = nn.Parameter(torch.zeros(features))
+        self.a_2 = nn.Parameter(torch.ones(dim))   # weight
+        self.b_2 = nn.Parameter(torch.zeros(dim))  # bias
         self.eps = eps
 	
     def forward(self, x):
@@ -454,10 +454,10 @@ $$
 # 注意力计算
 h = x + self.attention.forward(self.attention_norm(x))
 # 经过前馈神经网络
-out = h + self.feed_forward.forward(self.fnn_norm(h))
+out = h + self.feed_forward.forward(self.ffn_norm(h))
 ```
 
-在上文代码中，self.attention_norm 和 self.fnn_norm 都是 LayerNorm 层，self.attn 是注意力层，而 self.feed_forward 是前馈神经网络。
+在上文代码中，self.attention_norm 和 self.ffn_norm 都是 LayerNorm 层，self.attn 是注意力层，而 self.feed_forward 是前馈神经网络。
 
 ### 2.2.5 Encoder
 
@@ -470,10 +470,10 @@ class EncoderLayer(nn.Module):
     def __init__(self, args):
         super().__init__()
         # 一个 Layer 中有两个 LayerNorm，分别在 Attention 之前和 MLP 之前
-        self.attention_norm = LayerNorm(args.n_embd)
+        self.attention_norm = LayerNorm(args.dim)
         # Encoder 不需要掩码，传入 is_causal=False
         self.attention = MultiHeadAttention(args, is_causal=False)
-        self.fnn_norm = LayerNorm(args.n_embd)
+        self.ffn_norm = LayerNorm(args.dim)
         self.feed_forward = MLP(args.dim, args.dim, args.dropout)
 
     def forward(self, x):
@@ -482,7 +482,7 @@ class EncoderLayer(nn.Module):
         # 自注意力
         h = x + self.attention.forward(norm_x, norm_x, norm_x)
         # 经过前馈神经网络
-        out = h + self.feed_forward.forward(self.fnn_norm(h))
+        out = h + self.feed_forward.forward(self.ffn_norm(h))
         return out
 ```
 
@@ -492,10 +492,10 @@ class EncoderLayer(nn.Module):
 class Encoder(nn.Module):
     '''Encoder 块'''
     def __init__(self, args):
-        super(Encoder, self).__init__() 
+        super().__init__()  
         # 一个 Encoder 由 N 个 Encoder Layer 组成
-        self.layers = nn.ModuleList([EncoderLayer(args) for _ in range(args.n_layer)])
-        self.norm = LayerNorm(args.n_embd)
+        self.layers = nn.ModuleList([EncoderLayer(args) for _ in range(args.n_layers)])
+        self.norm = LayerNorm(args.dim)
 
     def forward(self, x):
         "分别通过 N 层 Encoder Layer"
@@ -516,23 +516,23 @@ class DecoderLayer(nn.Module):
     def __init__(self, args):
         super().__init__()
         # 一个 Layer 中有三个 LayerNorm，分别在 Mask Attention 之前、Self Attention 之前和 MLP 之前
-        self.attention_norm_1 = LayerNorm(args.n_embd)
+        self.self_attention_norm = LayerNorm(args.dim)
         # Decoder 的第一个部分是 Mask Attention，传入 is_causal=True
         self.mask_attention = MultiHeadAttention(args, is_causal=True)
-        self.attention_norm_2 = LayerNorm(args.n_embd)
+        self.cross_attention_norm = LayerNorm(args.dim)
         # Decoder 的第二个部分是 类似于 Encoder 的 Attention，传入 is_causal=False
         self.attention = MultiHeadAttention(args, is_causal=False)
-        self.ffn_norm = LayerNorm(args.n_embd)
+        self.ffn_norm = LayerNorm(args.dim)
         # 第三个部分是 MLP
         self.feed_forward = MLP(args.dim, args.dim, args.dropout)
 
     def forward(self, x, enc_out):
         # Layer Norm
-        norm_x = self.attention_norm_1(x)
+        norm_x = self.self_attention_norm(x)
         # 掩码自注意力
         x = x + self.mask_attention.forward(norm_x, norm_x, norm_x)
         # 多头注意力
-        norm_x = self.attention_norm_2(x)
+        norm_x = self.cross_attention_norm(x)
         h = x + self.attention.forward(norm_x, enc_out, enc_out)
         # 经过前馈神经网络
         out = h + self.feed_forward.forward(self.ffn_norm(h))
@@ -545,10 +545,10 @@ class DecoderLayer(nn.Module):
 class Decoder(nn.Module):
     '''解码器'''
     def __init__(self, args):
-        super(Decoder, self).__init__() 
+        super().__init__() 
         # 一个 Decoder 由 N 个 Decoder Layer 组成
-        self.layers = nn.ModuleList([DecoderLayer(args) for _ in range(args.n_layer)])
-        self.norm = LayerNorm(args.n_embd)
+        self.layers = nn.ModuleList([DecoderLayer(args) for _ in range(args.n_layers)])
+        self.norm = LayerNorm(args.dim)
 
     def forward(self, x, enc_out):
         "Pass the input (and mask) through each layer in turn."
@@ -765,11 +765,11 @@ class PositionalEncoding(nn.Module):
         # self.dropout = nn.Dropout(p=args.dropout)
 
         # block size 是序列的最大长度
-        pe = torch.zeros(args.block_size, args.n_embd)
+        pe = torch.zeros(args.block_size, args.dim)
         position = torch.arange(0, args.block_size).unsqueeze(1)
         # 计算 theta
         div_term = torch.exp(
-            torch.arange(0, args.n_embd, 2) * -(math.log(10000.0) / args.n_embd)
+            torch.arange(0, args.dim, 2) * -(math.log(10000.0) / args.dim)
         )
         # 分别计算 sin、cos 结果
         pe[:, 0::2] = torch.sin(position * div_term)
@@ -807,15 +807,15 @@ class Transformer(nn.Module):
         assert args.vocab_size is not None
         assert args.block_size is not None
         self.args = args
-        self.transformer = nn.ModuleDict(dict(
-            wte = nn.Embedding(args.vocab_size, args.n_embd),
-            wpe = PositionalEncoding(args),
-            drop = nn.Dropout(args.dropout),
-            encoder = Encoder(args),
-            decoder = Decoder(args),
-        ))
-        # 最后的线性层，输入是 n_embd，输出是词表大小
-        self.lm_head = nn.Linear(args.n_embd, args.vocab_size, bias=False)
+        self.transformer = nn.ModuleDict({
+            'wte': nn.Embedding(args.vocab_size, args.dim),
+            'wpe': PositionalEncoding(args),
+            'drop': nn.Dropout(args.dropout),
+            'encoder': Encoder(args),
+            'decoder': Decoder(args),
+        })
+        # 最后的线性层，输入是 dim，输出是词表大小
+        self.lm_head = nn.Linear(args.dim, args.vocab_size, bias=False)
 
         # 初始化所有的权重
         self.apply(self._init_weights)
@@ -850,7 +850,7 @@ class Transformer(nn.Module):
         assert t <= self.args.block_size, f"不能计算该序列，该序列长度为 {t}, 最大序列长度只有 {self.args.block_size}"
 
         # 通过 self.transformer
-        # 首先将输入 idx 通过 Embedding 层，得到维度为 (batch size, sequence length, n_embd)
+        # 首先将输入 idx 通过 Embedding 层，得到维度为 (batch size, sequence length, dim)
         print("idx",idx.size())
         # 通过 Embedding 层
         tok_emb = self.transformer.wte(idx)
