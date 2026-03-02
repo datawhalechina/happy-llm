@@ -812,7 +812,7 @@ class Transformer(nn.Module):
             'wpe': PositionalEncoding(args),
             'drop': nn.Dropout(args.dropout),
             'encoder': Encoder(args),
-            'decoder': Decoder(args),
+            'decoder': Decoder(args)
         })
         # 最后的线性层，输入是 dim，输出是词表大小
         self.lm_head = nn.Linear(args.dim, args.vocab_size, bias=False)
