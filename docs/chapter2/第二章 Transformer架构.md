@@ -253,6 +253,8 @@ class MultiHeadAttention(nn.Module):
         super().__init__()
         # 隐藏层维度必须是头数的整数倍，因为后面我们会将输入拆成头数个矩阵
         assert args.dim % args.n_heads == 0
+        # n_embd（GPT style) 需要和 dim (LLaMA style) 一致，都指的是隐藏层的维度
+        assert args.n_embd == args.dim, "n_embd 必须等于 dim"
         # 每个头的维度，等于模型维度除以头的总数。
         self.head_dim = args.dim // args.n_heads
         self.n_heads = args.n_heads
