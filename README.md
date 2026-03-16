@@ -23,7 +23,7 @@
 
 <div align="center">
   <p><a href="https://datawhalechina.github.io/happy-llm/">📚 在线阅读地址</a></p>
-  <h3>📚 从零开始的大语言模型原理与实践教程</h3>
+  <h3>📚 从零开始构建大模型</h3>
   <p><em>深入理解 LLM 核心原理，动手实现你的第一个大模型</em></p>
 </div>
 
