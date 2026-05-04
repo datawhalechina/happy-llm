@@ -1,0 +1,22 @@
+[project]
+name = "scratch-llm-learning"
+version = "0.1.0"
+description = "Learning scaffold for implementing a small decoder-only LLM from scratch."
+requires-python = ">=3.10"
+dependencies = [
+    "torch>=2.4",
+    "tokenizers>=0.19",
+    "transformers>=4.44",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

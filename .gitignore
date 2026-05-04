@@ -161,4 +161,12 @@ cython_debug/
 .DS_Store
 .obsidian
 
+# Scratch LLM local artifacts
+scratch_llm_runs/
+local_data/
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+
 .claude/
