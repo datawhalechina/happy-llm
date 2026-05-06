@@ -1,4 +1,5 @@
 - [Happy-LLM](./README.md)
+  - [学习与环境准备](./学习与环境准备.md)
   - [前言](./前言.md)
   - [第一章 NLP 基础概念](./chapter1/第一章%20NLP基础概念.md)
   - [第二章 Transformer 架构](./chapter2/第二章%20Transformer架构.md)
@@ -6,4 +7,5 @@
   - [第四章 大语言模型](./chapter4/第四章%20大语言模型.md) 
   - [第五章 动手搭建大模型](./chapter5/第五章%20动手搭建大模型.md)
   - [第六章 大模型训练实践](./chapter6/第六章%20大模型训练流程实践.md)
+    - [第六章实践说明](./chapter6/readme.md)
   - [第七章 大模型应用](./chapter7/第七章%20大模型应用.md)
