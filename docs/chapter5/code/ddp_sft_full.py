@@ -202,8 +202,11 @@ if __name__ == "__main__":
     torch.manual_seed(42)
     device_type = "cuda" if "cuda" in args.device else "cpu"
 
+    # 在生成 ctx 之前，先将字符串转为 torch 的 dtype 对象
+    ptdtype = {'float32': torch.float32, 'bfloat16': torch.bfloat16, 'float16': torch.float16}[args.dtype]
+    
     # 上下文管理器
-    ctx = nullcontext() if device_type == "cpu" else torch.cuda.amp.autocast()
+    ctx = nullcontext() if device_type == "cpu" else torch.cuda.amp.autocast(dtype=ptdtype)
 
     # 初始化模型和分词器
     model, tokenizer = init_model()
