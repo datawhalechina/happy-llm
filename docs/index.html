@@ -8,20 +8,146 @@
     <meta name="description" content="Description">
     <meta name="viewport"
         content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+
+    <!-- 1. 回归原始主题：保证列宽和排版是你最熟悉的样子 -->
     <link rel="stylesheet" href="//cdn.jsdelivr.net/npm/docsify@latest/lib/themes/vue.css">
+
+    <!-- 2. 手动定义暗黑模式样式 (精准覆盖，不影响布局) -->
+    <style>
+        /* --- 核心变量 --- */
+        :root {
+            --dark-bg: #1a1a1a;
+            --dark-text: #c4c4c4;
+            --dark-sidebar: #141414;
+            --dark-code-bg: #2b2b2b;
+            --dark-border: #333;
+            --theme-color: #42b983; /* 你的主题绿 */
+        }
+
+        /* --- 暗黑模式激活时的样式 --- */
+        body.dark-mode {
+            background-color: var(--dark-bg);
+            color: var(--dark-text);
+        }
+
+        /* 侧边栏变黑 */
+        body.dark-mode .sidebar {
+            background-color: var(--dark-sidebar);
+            border-right: 1px solid var(--dark-border);
+            color: var(--dark-text);
+        }
+        body.dark-mode .sidebar-nav li a {
+            color: #999;
+        }
+        body.dark-mode .sidebar-nav li.active > a {
+            color: var(--theme-color);
+            border-right: 2px solid var(--theme-color);
+        }
+
+        /* 正文内容适配 */
+        body.dark-mode section.content {
+            padding-top: 20px; /* 避免顶栏遮挡 */
+        }
+        
+        /* --- 重点：修复代码块颜色 --- */
+        /* 背景变深灰，文字变亮 */
+        body.dark-mode pre {
+            background-color: var(--dark-code-bg) !important;
+        }
+        body.dark-mode code {
+            background-color: var(--dark-code-bg) !important;
+            color: #e0e0e0 !important;
+        }
+        /* 行内代码 (`code`) */
+        body.dark-mode .markdown-section code {
+            color: #f08d49; /* 醒目的橙色 */
+            background-color: rgba(255,255,255,0.1);
+        }
+        /* 代码块内的文字强制变亮，防止原本的黑色字看不清 */
+        body.dark-mode .token.comment, 
+        body.dark-mode .token.prolog, 
+        body.dark-mode .token.doctype, 
+        body.dark-mode .token.cdata {
+            color: #777;
+        }
+        body.dark-mode .token.punctuation {
+            color: #ccc;
+        }
+        body.dark-mode .token.operator,
+        body.dark-mode .token.entity,
+        body.dark-mode .token.url,
+        body.dark-mode .language-css .token.string,
+        body.dark-mode .style .token.string {
+            color: #c4c4c4;
+        }
+
+        /* 标题和引用 */
+        body.dark-mode h1, body.dark-mode h2, body.dark-mode h3, body.dark-mode h4, body.dark-mode h5 {
+            color: #e0e0e0;
+        }
+        body.dark-mode blockquote {
+            color: #999;
+            background: rgba(255,255,255,0.05);
+        }
+
+        /* 表格修复 */
+        body.dark-mode .markdown-section tr:nth-child(2n) {
+            background-color: rgba(255,255,255,0.03);
+        }
+        body.dark-mode .markdown-section td, 
+        body.dark-mode .markdown-section th {
+            border-color: var(--dark-border);
+        }
+
+        /* Mermaid 图表反色 */
+        body.dark-mode .mermaid {
+            filter: invert(1) hue-rotate(180deg);
+        }
+
+        /* --- 切换按钮样式 (嵌入侧边栏) --- */
+        .sidebar-toggle-btn {
+            cursor: pointer;
+            display: block;
+            text-align: center;
+            padding: 10px 0;
+            margin: 0 15px 10px 15px;
+            font-weight: bold;
+            font-size: 14px;
+            border-radius: 4px;
+            background-color: rgba(0,0,0,0.05);
+            color: #505d6b;
+            border: 1px solid rgba(0,0,0,0.05);
+            transition: all 0.3s;
+        }
+        body.dark-mode .sidebar-toggle-btn {
+            background-color: rgba(255,255,255,0.1);
+            color: #ccc;
+            border: 1px solid #444;
+        }
+        .sidebar-toggle-btn:hover {
+            background-color: var(--theme-color);
+            color: white;
+        }
+    </style>
 </head>
 
 <body>
     <div id="app"></div>
+    
+    <!-- Mermaid JS -->
     <script src="//cdn.jsdelivr.net/npm/mermaid@8.0.0-rc.8/dist/mermaid.min.js"></script>
+    
     <script>
+        var num = 0;
+        mermaid.initialize({ startOnLoad: false });
+
         window.$docsify = {
             name: 'Happy-LLM',
             repo: 'https://github.com/datawhalechina/happy-llm',
             loadSidebar: true,
             auto2top: true,
             subMaxLevel: 2,
-            relativePath: false,  // 启用相对路径支持
+            relativePath: false,
             alias: {
                 '/.*/_sidebar.md': '/_sidebar.md'
             },
@@ -34,24 +160,80 @@
                 fontsize: '0.9em',
                 color: 'rgb(90,90,90)',
                 language: 'chinese'
-            }
+            },
+            // Mermaid 渲染配置
+            markdown: {
+                renderer: {
+                    code: function(code, lang) {
+                        if (lang === "mermaid") {
+                            return (
+                                '<div class="mermaid">' + mermaid.render('mermaid-svg-' + num++, code) + "</div>"
+                            );
+                        }
+                        return this.origin.code.apply(this, arguments);
+                    }
+                }
+            },
+            // --- 插件逻辑：插入按钮 + 图片放大 ---
+            plugins: [
+                function(hook, vm) {
+                    // 每次路由切换完成后执行
+                    hook.doneEach(function() {
+                        // 1. 获取侧边栏元素
+                        const sidebar = document.querySelector('.sidebar-nav');
+                        // 2. 如果已存在按钮则不重复添加
+                        if (!sidebar || document.querySelector('.sidebar-toggle-btn')) return;
+
+                        // 3. 创建按钮
+                        const btn = document.createElement('div');
+                        btn.className = 'sidebar-toggle-btn';
+                        
+                        // 4. 初始化状态
+                        const savedTheme = localStorage.getItem('theme-mode');
+                        if (savedTheme === 'dark') {
+                            document.body.classList.add('dark-mode');
+                            btn.textContent = '🌙 Switch to Light';
+                        } else {
+                            btn.textContent = '☀️ Switch to Dark';
+                        }
+
+                        // 5. 点击事件
+                        btn.onclick = function() {
+                            document.body.classList.toggle('dark-mode');
+                            const isDark = document.body.classList.contains('dark-mode');
+                            // 保存状态
+                            localStorage.setItem('theme-mode', isDark ? 'dark' : 'light');
+                            // 更新按钮文字
+                            btn.textContent = isDark ? '🌙 Switch to Light' : '☀️ Switch to Dark';
+                        };
+
+                        // 6. 插入到侧边栏最顶部
+                        sidebar.insertBefore(btn, sidebar.firstChild);
+                    });
+                }
+            ]
         }
     </script>
-    <!-- Put them above docsify.min.js -->
+
+    <!-- Docsify 核心 -->
     <script src="//cdn.jsdelivr.net/npm/docsify@latest/lib/docsify.min.js"></script>
-    <!-- code render-->
+
+    <!-- 图片放大 (官方插件，最稳) -->
+    <script src="//cdn.jsdelivr.net/npm/docsify/lib/plugins/zoom-image.min.js"></script>
+
+    <!-- 复制代码 -->
+    <script src="//cdn.jsdelivr.net/npm/docsify-copy-code"></script>
+    
+    <!-- 代码高亮支持 -->
     <script src="//cdn.jsdelivr.net/npm/prismjs@latest/components/prism-bash.js"></script>
     <script src="//cdn.jsdelivr.net/npm/prismjs@latest/components/prism-python.js"></script>
-    <script src="//cdn.jsdelivr.net/npm/docsify-pagination@latest/dist/docsify-pagination.min.js"></script>
-    <script src="//cdn.jsdelivr.net/npm/docsify-copy-code"></script>
 
+    <!-- 其他插件 -->
+    <script src="//cdn.jsdelivr.net/npm/docsify-pagination@latest/dist/docsify-pagination.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.js"></script>
     <link rel="stylesheet" href="//cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css" />
     <script src="https://cdn.jsdelivr.net/npm/marked@3"></script>
-    <!-- CDN files for docsify-katex -->
     <script src="//cdn.jsdelivr.net/npm/docsify-katex@latest/dist/docsify-katex.js"></script>
-    <!-- 字数统计 -->
     <script src="//unpkg.com/docsify-count/dist/countable.js"></script>
 </body>
-
 </html>

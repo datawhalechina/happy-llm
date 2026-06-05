@@ -23,7 +23,7 @@
 
 <div align="center">
   <p><a href="https://datawhalechina.github.io/happy-llm/">📚 在线阅读地址</a></p>
-  <h3>📚 从零开始的大语言模型原理与实践教程</h3>
+  <h3>📚 从零开始构建大模型</h3>
   <p><em>深入理解 LLM 核心原理，动手实现你的第一个大模型</em></p>
 </div>
 
@@ -49,15 +49,18 @@
 
 | 章节 | 关键内容 | 状态 |
 | --- | --- | --- |
+| [学习与环境准备](./docs/学习与环境准备.md) | 分章依赖、硬件建议与实践入口 | ✅ |
 | [前言](./docs/前言.md) | 本项目的缘起、背景及读者建议 | ✅ |
 | [第一章 NLP 基础概念](./docs/chapter1/第一章%20NLP基础概念.md) | 什么是 NLP、发展历程、任务分类、文本表示演进 | ✅ |
 | [第二章 Transformer 架构](./docs/chapter2/第二章%20Transformer架构.md) | 注意力机制、Encoder-Decoder、手把手搭建 Transformer | ✅ |
 | [第三章 预训练语言模型](./docs/chapter3/第三章%20预训练语言模型.md) | Encoder-only、Encoder-Decoder、Decoder-Only 模型对比 | ✅ |
 | [第四章 大语言模型](./docs/chapter4/第四章%20大语言模型.md) | LLM 定义、训练策略、涌现能力分析 | ✅ |
 | [第五章 动手搭建大模型](./docs/chapter5/第五章%20动手搭建大模型.md) | 实现 LLaMA2、训练 Tokenizer、预训练小型 LLM | ✅ |
-| [第六章 大模型训练实践](./docs/chapter6/第六章%20大模型训练流程实践.md) | 预训练、有监督微调、LoRA/QLoRA 高效微调 | 🚧 |
+| [第六章 大模型训练实践](./docs/chapter6/第六章%20大模型训练流程实践.md) | 预训练、有监督微调、LoRA/QLoRA 高效微调 | ✅ |
 | [第七章 大模型应用](./docs/chapter7/第七章%20大模型应用.md) | 模型评测、RAG 检索增强、Agent 智能体 | ✅ |
 | [Extra Chapter LLM Blog](./Extra-Chapter/) | 优秀的大模型 学习笔记/Blog ，欢迎大家来 PR ！| 🚧 |
+
+> 第六章正文已覆盖 Pretrain、SFT 与 PEFT 等核心训练流程，建议结合 [第六章实践说明](./docs/chapter6/readme.md) 和 [学习与环境准备](./docs/学习与环境准备.md) 一起阅读；偏好对齐可继续参考 [第六章补充专题](./docs/chapter6/6.4%5BWIP%5D%20偏好对齐.md)。
 
 ### Extra Chapter LLM Blog
 
@@ -93,11 +96,17 @@
 
 &emsp;&emsp;***本 Happy-LLM PDF 教程完全开源免费。为防止各类营销号加水印后贩卖给大模型初学者，我们特地在 PDF 文件中预先添加了不影响阅读的 Datawhale 开源标志水印，敬请谅解～***
 
-> *Happy-LLM PDF : https://github.com/datawhalechina/happy-llm/releases/tag/v1.0.1*  
+> *Happy-LLM PDF : https://github.com/datawhalechina/happy-llm/releases/tag/v1.0.2*  
+
+### PPT 资源下载
+
+&emsp;&emsp;***本项目配套教学讲义PPT课件资源获取链接：https://github.com/HZAI-ZJNU/happy-llm-ppt 或可在本项目的 [Releases](https://github.com/datawhalechina/happy-llm/releases) 页面下载。***
 
 ## 💡 如何学习
 
 &emsp;&emsp;本项目适合大学生、研究人员、LLM 爱好者。在学习本项目之前，建议具备一定的编程经验，尤其是要对 Python 编程语言有一定的了解。最好具备深度学习的相关知识，并了解 NLP 领域的相关概念和术语，以便更轻松地学习本项目。
+
+&emsp;&emsp;如果你计划复现章节代码，建议先阅读 [学习与环境准备](./docs/学习与环境准备.md)。仓库当前按章节拆分依赖，不同章节建议使用独立的 Python 环境，以减少版本冲突。
 
 &emsp;&emsp;本项目分为两部分——基础知识与实战应用。第1章～第4章是基础知识部分，从浅入深介绍 LLM 的基本原理。其中，第1章简单介绍 NLP 的基本任务和发展，为非 NLP 领域研究者提供参考；第2章介绍 LLM 的基本架构——Transformer，包括原理介绍及代码实现，作为 LLM 最重要的理论基础；第3章整体介绍经典的 PLM，包括 Encoder-Only、Encoder-Decoder 和 Decoder-Only 三种架构，也同时介绍了当前一些主流 LLM 的架构和思想；第4章则正式进入 LLM 部分，详细介绍 LLM 的特点、能力和整体训练过程。第5章～第7章是实战应用部分，将逐步带领大家深入 LLM 的底层细节。其中，第5章将带领大家者基于 PyTorch 层亲手搭建一个 LLM，并实现预训练、有监督微调的全流程；第6章将引入目前业界主流的 LLM 训练框架 Transformers，带领学习者基于该框架快速、高效地实现 LLM 训练过程；第7章则将介绍 基于 LLM 的各种应用，补全学习者对 LLM 体系的认知，包括 LLM 的评测、检索增强生成（Retrieval-Augmented Generation，RAG）、智能体（Agent）的思想和简单实现。你可以根据个人兴趣和需求，选择性地阅读相关章节。
 
@@ -119,7 +128,7 @@
 ## 🙏 致谢
 
 ### 核心贡献者
-- [宋志学-项目负责人](https://github.com/KMnO4-zx) (Datawhale成员-中国矿业大学(北京))
+- [宋志学-项目负责人](https://github.com/KMnO4-zx) (Datawhale成员)
 - [邹雨衡-项目负责人](https://github.com/logan-zou) (Datawhale成员-对外经济贸易大学)
 - [朱信忠-指导专家](https://xinzhongzhu.github.io/)（Datawhale首席科学家-浙江师范大学杭州人工智能研究院教授）
 

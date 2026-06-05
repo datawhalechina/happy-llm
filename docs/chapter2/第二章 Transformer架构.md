@@ -6,7 +6,7 @@
 
 随着 NLP 从统计机器学习向深度学习迈进，作为 NLP 核心问题的文本表示方法也逐渐从统计学习向深度学习迈进。正如我们在第一章所介绍的，文本表示从最初的通过统计学习模型进行计算的向量空间模型、语言模型，通过 Word2Vec 的单层神经网络进入到通过神经网络学习文本表示的时代。但是，从 计算机视觉（Computer Vision，CV）为起源发展起来的神经网络，其核心架构有三种：
 
-- 全连接神经网络（Feedforward Neural Network，FNN），即每一层的神经元都和上下两层的每一个神经元完全连接，如图2.1所示:
+- 前馈神经网络（Feedforward Neural Network，FNN），即数据从输入层单向流动到输出层，无循环结构，各层之间通过全连接或特定方式传递信息，其中多层感知机（Multi-Layer Perceptron，MLP）是最常见的形式，每一层的神经元都和上下两层的每一个神经元完全连接，如图2.1所示:
 
 <div align="center">
   <img src="https://raw.githubusercontent.com/datawhalechina/happy-llm/main/docs/images/2-figures/1-0.png" alt="图片描述" width="90%"/>
@@ -374,7 +374,7 @@ class MLP(nn.Module):
     
 ```
 
-注意，Transformer 的前馈神经网络是由两个线性层中间加一个 RELU 激活函数组成的，以及前馈神经网络还加入了一个 Dropout 层来防止过拟合。
+注意，Transformer 的前馈神经网络是由两个线性层中间加一个 RELU 激活函数组成的，以及前馈神经网络还加入了一个 Dropout 层来防止过拟合。Dropout 层只在训练时开启，推理/测试阶段关闭，所以许多Transformer结构示意图中不会画出该层。
 
 ### 2.2.3 层归一化
 
@@ -419,18 +419,18 @@ $$
 class LayerNorm(nn.Module):
     ''' Layer Norm 层'''
     def __init__(self, features, eps=1e-6):
-	super().__init__()
-    # 线性矩阵做映射
-	self.a_2 = nn.Parameter(torch.ones(features))
-	self.b_2 = nn.Parameter(torch.zeros(features))
-	self.eps = eps
+        super().__init__()
+        # 线性矩阵做映射
+        self.a_2 = nn.Parameter(torch.ones(features))
+        self.b_2 = nn.Parameter(torch.zeros(features))
+        self.eps = eps
 	
     def forward(self, x):
-	# 在统计每个样本所有维度的值，求均值和方差
-	mean = x.mean(-1, keepdim=True) # mean: [bsz, max_len, 1]
-	std = x.std(-1, keepdim=True) # std: [bsz, max_len, 1]
-    # 注意这里也在最后一个维度发生了广播
-	return self.a_2 * (x - mean) / (std + self.eps) + self.b_2
+        # 在统计每个样本所有维度的值，求均值和方差
+        mean = x.mean(-1, keepdim=True) # mean: [bsz, max_len, 1]
+        std = x.std(-1, keepdim=True) # std: [bsz, max_len, 1]
+        # 注意这里也在最后一个维度发生了广播
+        return self.a_2 * (x - mean) / (std + self.eps) + self.b_2
 ```
 注意，在我们上文实现的 Layer Norm 层中，有两个线性矩阵进行映射。
 
@@ -438,7 +438,7 @@ class LayerNorm(nn.Module):
 
 由于 Transformer 模型结构较复杂、层数较深，​为了避免模型退化，Transformer 采用了残差连接的思想来连接每一个子层。残差连接，即下一层的输入不仅是上一层的输出，还包括上一层的输入。残差连接允许最底层信息直接传到最高层，让高层专注于残差的学习。
 
-​例如，在 Encoder 中，在第一个子层，输入进入多头自注意力层的同时会直接传递到该层的输出，然后该层的输出会与原输入相加，再进行标准化。在第二个子层也是一样。即：
+​例如，在 Encoder 中，在第一个子层，输入会先进行层归一化（Layer Norm），然后进入多头自注意力层，其输出会与原输入相加。在第二个子层也是一样。即：
 
 $$
 x = x + MultiHeadSelfAttention(LayerNorm(x))
@@ -611,7 +611,7 @@ PE(pos, 2i) = sin(pos/10000^{2i/d_{model}})\\
 PE(pos, 2i+1) = cos(pos/10000^{2i/d_{model}})
 $$
 
-​上式中，pos 为 token 在句子中的位置，2i 和 2i+1 则是指示了 token 是奇数位置还是偶数位置，从上式中我们可以看出对于奇数位置的 token 和偶数位置的 token，Transformer 采用了不同的函数进行编码。
+上式中，pos 为 token 在句子中的位置，2i 和 2i+1 则指示了位置编码向量的维度索引是奇数还是偶数，从上式中我们可以看出对于奇数维度和偶数维度，Transformer 采用了不同的函数进行编码。
 
 我们以一个简单的例子来说明位置编码的计算过程：假如我们输入的是一个长度为 4 的句子"I like to code"，我们可以得到下面的词向量矩阵 $\rm x$ ，其中每一行代表的就是一个词向量， $\rm x_0=[0.1,0.2,0.3,0.4]$ 对应的就是“I”的词向量，它的pos就是为0，以此类推，第二行代表的是“like”的词向量，它的pos就是1：
 

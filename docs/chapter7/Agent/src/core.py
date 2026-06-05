@@ -19,6 +19,7 @@ class Agent:
         self.messages = [
             {"role": "system", "content": SYSTEM_PROMPT},
         ]
+        self.tool_map = {tool.__name__: tool for tool in self.tools}
         self.verbose = verbose
 
     def get_tool_schema(self) -> List[Dict[str, Any]]:
@@ -28,14 +29,28 @@ class Agent:
     def handle_tool_call(self, tool_call):
         # 处理工具调用
         function_name = tool_call.function.name
-        function_args = tool_call.function.arguments
+        function_args = tool_call.function.arguments  # 此时这是一个 JSON 字符串
         function_id = tool_call.id
 
-        function_call_content = eval(f"{function_name}(**{function_args})")
+        # 1. 将 JSON 字符串解析为 Python 字典
+        try:
+            args_dict = json.loads(function_args)
+        except json.JSONDecodeError:
+            args_dict = {} # 防止模型胡言乱语返回无效 JSON
 
+        # 2. 动态获取函数并执行（更安全、更优雅的方式）
+        func = self.tool_map.get(function_name)
+        
+        if func:
+            # 现在的 args_dict 是真正的字典了，可以用 ** 解包
+            function_call_content = func(**args_dict)
+        else:
+            function_call_content = f"Error: 找不到名为 {function_name} 的工具"
+
+        # 3. 组装返回给模型的工具结果
         return {
             "role": "tool",
-            "content": function_call_content,
+            "content": str(function_call_content), # 强制转为字符串，确保 API 不报错
             "tool_call_id": function_id,
         }
 

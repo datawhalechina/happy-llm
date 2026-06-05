@@ -111,7 +111,7 @@ We welcome any form of contribution!
 ## 🙏 Acknowledgments
 
 ### Core Contributors
-- [Song Zhixue - Project Leader](https://github.com/KMnO4-zx) (Datawhale Member - China University of Mining and Technology, Beijing)
+- [Song Zhixue - Project Leader](https://github.com/KMnO4-zx) (Datawhale Member)
 - [Zou Yuheng - Project Leader](https://github.com/logan-zou) (Datawhale Member - University of International Business and Economics)
 - [Zhu Xinzhong - Expert Advisor](https://xinzhongzhu.github.io/) (Datawhale Chief Scientist - Professor at Hangzhou Institute for Advanced Study, Zhejiang Normal University)
 
