@@ -56,11 +56,11 @@
 | [第三章 预训练语言模型](./docs/chapter3/第三章%20预训练语言模型.md) | Encoder-only、Encoder-Decoder、Decoder-Only 模型对比 | ✅ |
 | [第四章 大语言模型](./docs/chapter4/第四章%20大语言模型.md) | LLM 定义、训练策略、涌现能力分析 | ✅ |
 | [第五章 动手搭建大模型](./docs/chapter5/第五章%20动手搭建大模型.md) | 实现 LLaMA2、训练 Tokenizer、预训练小型 LLM | ✅ |
-| [第六章 大模型训练实践](./docs/chapter6/第六章%20大模型训练流程实践.md) | 预训练、有监督微调、LoRA/QLoRA 高效微调 | ✅ |
+| [第六章 大模型训练实践](./docs/chapter6/第六章%20大模型训练流程实践.md) | 预训练、有监督微调、LoRA/QLoRA 高效微调、偏好对齐 | ✅ |
 | [第七章 大模型应用](./docs/chapter7/第七章%20大模型应用.md) | 模型评测、RAG 检索增强、Agent 智能体 | ✅ |
 | [Extra Chapter LLM Blog](./Extra-Chapter/) | 优秀的大模型 学习笔记/Blog ，欢迎大家来 PR ！| 🚧 |
 
-> 第六章正文已覆盖 Pretrain、SFT 与 PEFT 等核心训练流程，建议结合 [第六章实践说明](./docs/chapter6/readme.md) 和 [学习与环境准备](./docs/学习与环境准备.md) 一起阅读；偏好对齐可继续参考 [第六章补充专题](./docs/chapter6/6.4%5BWIP%5D%20偏好对齐.md)。
+> 第六章正文已覆盖 Pretrain、SFT、PEFT 与偏好对齐等核心训练流程，建议结合 [第六章实践说明](./docs/chapter6/readme.md) 和 [学习与环境准备](./docs/学习与环境准备.md) 一起阅读。
 
 ### Extra Chapter LLM Blog
 
