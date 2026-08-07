@@ -1,11 +1,11 @@
-"""同步版 OPD demo：ModelScope DeepMath-103K + PyTRIO + SwanLab。
+"""异步版 OPD demo：ModelScope DeepMath-103K + PyTRIO + SwanLab。
 
 核心逻辑是 on-policy distillation：
 student 先采样，teacher 对 student 采样轨迹算 logprob，
 reverse_kl = student_logprob - teacher_logprob，再用 -reverse_kl 做 advantage。
 
 小成本试跑：
-python docs/chapter8/opd/train.py \
+python docs/chapter8/opd/02-demo-async.py \
     --steps 10 \
     --batch-size 4 \
     --group-size 4 \
@@ -17,18 +17,25 @@ python docs/chapter8/opd/train.py \
 from __future__ import annotations
 
 import argparse
+import asyncio
 import random
 import shutil
 import time
 import urllib.parse
 import urllib.request
 from pathlib import Path
+from typing import Any
 
-from datasets import load_dataset
+from datasets import Dataset, load_dataset
 import numpy as np
 import pytrio as trio
 import swanlab
 from tqdm import tqdm
+
+
+trio.configure(
+    timeout=600,
+)
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -37,7 +44,7 @@ DEEPMATH_SHARDS = 10
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="PyTRIO 同步版 OPD / DeepMath")
+    parser = argparse.ArgumentParser(description="PyTRIO 异步版 OPD / DeepMath")
     parser.add_argument("--dataset-repo", default="AI-ModelScope/DeepMath-103K")
     parser.add_argument("--dataset-revision", default="master")
     parser.add_argument("--dataset-dir", type=Path, default=DEFAULT_DATA_DIR)
@@ -48,7 +55,7 @@ def parse_args() -> argparse.Namespace:
 
     parser.add_argument("--base-model", default="Qwen/Qwen3.5-4B")
     parser.add_argument("--lora-rank", type=int, default=32)
-    parser.add_argument("--teacher-base-model", default="Qwen/Qwen3.6-27B", help="默认和 Qwen/Qwen3.6-27B 一样")
+    parser.add_argument("--teacher-base-model", default="Qwen/Qwen3.6-27B", help="默认使用 27B teacher")
     parser.add_argument("--teacher-model-path", default=None)
 
     parser.add_argument("--steps", type=int, default=10)
@@ -68,11 +75,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--beta1", type=float, default=0.9)
     parser.add_argument("--beta2", type=float, default=0.95)
     parser.add_argument("--sampler-refresh-steps", type=int, default=1)
-    parser.add_argument("--save-weights-name", default="opd-deepmath-qwen35-4b-sync")
+    parser.add_argument("--save-weights-name", default="opd-deepmath-qwen35-4b-async")
 
     parser.add_argument("--swanlab", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument("--swanlab-project", default="happy-llm-chapter8-opd")
-    parser.add_argument("--swanlab-name", default="opd-deepmath-qwen35-4b-sync")
+    parser.add_argument("--swanlab-name", default="opd-deepmath-qwen35-4b-async")
     parser.add_argument("--swanlab-workspace", default=None)
     parser.add_argument(
         "--swanlab-mode",
@@ -130,7 +137,7 @@ def download_if_needed(url: str, local_path: Path, force: bool) -> None:
     tmp_path.replace(local_path)
 
 
-def load_deepmath(args: argparse.Namespace):
+def load_deepmath(args: argparse.Namespace) -> Dataset:
     """从 ModelScope 下载 parquet 到本地，然后用 datasets 库读取本地文件。"""
     shard_paths = []
 
@@ -154,6 +161,8 @@ def load_deepmath(args: argparse.Namespace):
         split="train",
         cache_dir=str(args.dataset_dir / ".datasets_cache"),
     )
+    if not isinstance(dataset, Dataset):
+        raise TypeError(f"Expected Dataset, got {type(dataset)!r}")
 
     # OPD 这里只需要 prompt；DeepMath 里对应字段是 question。
     if "question" not in dataset.column_names:
@@ -166,7 +175,7 @@ def load_deepmath(args: argparse.Namespace):
     return dataset
 
 
-def build_prompt(tokenizer, question: str, suffix: str, enable_thinking: bool) -> list[int]:
+def build_prompt(tokenizer: Any, question: str, suffix: str, enable_thinking: bool) -> list[int]:
     """把 DeepMath question 渲染成 chat prompt token。"""
     content = question.strip() if not suffix else f"{question.strip()}\n\n{suffix}"
     messages = [{"role": "user", "content": content}]
@@ -176,18 +185,27 @@ def build_prompt(tokenizer, question: str, suffix: str, enable_thinking: bool) -
         add_generation_prompt=True,
         enable_thinking=enable_thinking,
     )
-    return tokenizer.encode(prompt, add_special_tokens=False)
+    prompt_ids = tokenizer.encode(prompt, add_special_tokens=False)
+    if not prompt_ids:
+        raise ValueError("Prompt tokens are empty")
+    return prompt_ids
 
 
-def completion_teacher_logprobs(teacher_client, prompt_ids: list[int], completion_ids: list[int]):
+async def completion_teacher_logprobs_async(
+    teacher_client: Any,
+    prompt_ids: list[int],
+    completion_ids: list[int],
+) -> list[float]:
     """teacher 对 student 实际生成 completion 的逐 token logprob。"""
     # teacher 需要看到和 student rollout 完全一致的上下文：
     # prompt 是题目，completion 是 student 已经生成出来的答案 token。
     all_ids = prompt_ids + completion_ids
 
-    # compute_logprobs 返回整段 all_ids 中每个 token 在其前文条件下的 logprob。
+    # compute_logprobs_async 在当前 PyTRIO SDK 里 await 后直接返回 list[float | None]。
     # 第一个 token 通常没有前文，所以返回值里可能有 None；我们只取 completion 区间。
-    all_logprobs = teacher_client.compute_logprobs(trio.ModelInput.from_ints(all_ids)).result()
+    all_logprobs = await teacher_client.compute_logprobs_async(
+        trio.ModelInput.from_ints(all_ids)
+    )
 
     # completion 的第一个 token 是在完整 prompt 后被预测出来的，
     # 因此从 len(prompt_ids) 开始到结尾就是 completion 的 logprobs。
@@ -200,7 +218,12 @@ def completion_teacher_logprobs(teacher_client, prompt_ids: list[int], completio
     return [float(v) for v in completion_logprobs]
 
 
-def build_opd_datum(prompt_ids: list[int], completion_ids: list[int], old_logprobs, advantages):
+def build_opd_datum(
+    prompt_ids: list[int],
+    completion_ids: list[int],
+    old_logprobs: list[float],
+    advantages: list[float] | np.ndarray,
+) -> trio.Datum:
     """PyTRIO importance_sampling 需要右移后的 input/target/logprobs/advantages。"""
     # 自回归训练需要右移：用当前位置 input token 预测下一个 target token。
     # prompt 内部的预测不是 OPD 训练目标，所以这部分 advantage 置 0。
@@ -215,7 +238,7 @@ def build_opd_datum(prompt_ids: list[int], completion_ids: list[int], old_logpro
 
     # old_logprobs 是 student rollout 时每个 completion token 的旧策略 logprob。
     # prompt 区间不训练，因此同样用 0.0 占位。
-    padded_logprobs = [0.0] * prompt_loss_len + list(old_logprobs)
+    padded_logprobs = [0.0] * prompt_loss_len + old_logprobs
 
     # advantages 是 -kl_penalty_coef * reverse_kl，只对 completion token 生效。
     padded_advantages = [0.0] * prompt_loss_len + list(advantages)
@@ -236,7 +259,69 @@ def build_opd_datum(prompt_ids: list[int], completion_ids: list[int], old_logpro
     )
 
 
-def start_swanlab(args: argparse.Namespace, dataset_size: int):
+async def run_prompt_rollout(
+    student_sampler: Any,
+    teacher_client: Any,
+    tokenizer: Any,
+    row: dict[str, Any],
+    args: argparse.Namespace,
+    sampling_params: trio.SamplingParams,
+) -> tuple[list[trio.Datum], list[float], list[int]]:
+    """异步处理单道题：student 采样，再让 teacher 给同一批 completion 打 logprob。"""
+    # DeepMath 这里只使用 question 字段构造 prompt。
+    prompt_ids = build_prompt(
+        tokenizer,
+        row["question"],
+        args.question_suffix,
+        args.enable_thinking,
+    )
+
+    # 当前 student 采样出的 completion 就是 OPD 的 on-policy 轨迹。
+    result = await student_sampler.sample_async(
+        prompt=trio.ModelInput.from_ints(prompt_ids),
+        num_samples=args.group_size,
+        sampling_params=sampling_params,
+        return_text=False,
+    )
+
+    sequences = [seq for seq in result.sequences if seq.tokens]
+
+    # teacher 不是重新生成答案，而是并发给 student 已生成 token 打 logprob。
+    teacher_tasks = [
+        completion_teacher_logprobs_async(teacher_client, prompt_ids, seq.tokens)
+        for seq in sequences
+    ]
+    teacher_logprobs_list = await asyncio.gather(*teacher_tasks) if teacher_tasks else []
+
+    # datums 会送进 PyTRIO forward_backward；
+    # reverse_kls 和 completion_token_counts 只用于本 step 的日志统计。
+    datums: list[trio.Datum] = []
+    reverse_kls: list[float] = []
+    completion_token_counts: list[int] = []
+
+    for seq, teacher_lps in zip(sequences, teacher_logprobs_list, strict=True):
+        completion_ids = seq.tokens
+        student_lps = [float(value) for value in seq.logprobs]
+
+        if len(student_lps) != len(completion_ids):
+            raise ValueError(
+                f"Student token/logprob length mismatch: {len(completion_ids)} != {len(student_lps)}"
+            )
+
+        # OPD 信号：reverse_kl = student_logprob - teacher_logprob。
+        reverse_kl = np.asarray(student_lps) - np.asarray(teacher_lps)
+        advantages = -args.kl_penalty_coef * reverse_kl
+
+        # importance_sampling 使用旧策略 logprobs 和 KL advantage 更新 student。
+        datums.append(build_opd_datum(prompt_ids, completion_ids, student_lps, advantages))
+        reverse_kls.extend(reverse_kl.tolist())
+        completion_token_counts.append(len(completion_ids))
+
+    return datums, reverse_kls, completion_token_counts
+
+
+def start_swanlab(args: argparse.Namespace, dataset_size: int) -> Any | None:
+    """SwanLab 只做实验记录，不影响训练逻辑。"""
     if not args.swanlab:
         return None
     config = vars(args).copy()
@@ -248,12 +333,12 @@ def start_swanlab(args: argparse.Namespace, dataset_size: int):
         workspace=args.swanlab_workspace,
         mode=args.swanlab_mode,
         config=config,
-        tags=["TRIO", "OPD", "DeepMath", "ModelScope"],
+        tags=["TRIO", "OPD", "DeepMath", "ModelScope", "async"],
         log_dir=str(SCRIPT_DIR / "swanlog"),
     )
 
 
-def main(args: argparse.Namespace) -> None:
+async def main(args: argparse.Namespace) -> None:
     # 固定本地随机性：数据 shuffle 和部分采样参数都会用到 seed。
     random.seed(args.seed)
     np.random.seed(args.seed)
@@ -262,101 +347,98 @@ def main(args: argparse.Namespace) -> None:
     dataset = load_deepmath(args)
     print(f"Loaded {len(dataset)} DeepMath prompts")
 
-    # ServiceClient 是 PyTRIO 训练和采样的入口；训练发生在远程服务。
     service_client = trio.ServiceClient()
+    swanlab_run = None
 
-    # student 是一个 LoRA training client，后续 forward/backward 和 optim 都作用在它上面。
-    training_client = service_client.create_lora_training_client(
-        base_model=args.base_model,
-        rank=args.lora_rank,
-        seed=args.seed,
-    )
-    tokenizer = training_client.get_tokenizer()
-
-    # teacher 只负责给 student 采样轨迹打 logprob，不参与优化。
-    teacher_client = service_client.create_sampling_client(
-        base_model=args.teacher_base_model or args.base_model,
-        model_path=args.teacher_model_path,
-    )
-
-    # student rollout 的采样参数；这些回答会成为 OPD 的 on-policy 轨迹。
-    sampling_params = trio.SamplingParams(
-        max_tokens=args.max_tokens,
-        seed=args.seed,
-        temperature=args.temperature,
-        top_p=args.top_p,
-        top_k=args.top_k,
-        stop=[x for x in [tokenizer.eos_token, "<|im_end|>"] if x],
-    )
-
-    # PyTRIO 的优化器参数；每步 forward_backward 后调用一次 optim_step。
-    adam = trio.AdamParams(
-        learning_rate=args.learning_rate,
-        beta1=args.beta1,
-        beta2=args.beta2,
-    )
-
-    # SwanLab 只做实验记录，不影响训练逻辑。
-    run = start_swanlab(args, len(dataset))
-
-    student_sampler = None
     try:
+        print("Creating PyTRIO clients...")
+        # student 是一个 LoRA training client，后续 forward/backward 和 optim 都作用在它上面。
+        training_client = await service_client.create_lora_training_client_async(
+            base_model=args.base_model,
+            rank=args.lora_rank,
+            seed=args.seed,
+        )
+        tokenizer = training_client.get_tokenizer()
+
+        # teacher 只负责给 student 采样轨迹打 logprob，不参与优化。
+        teacher_client = await service_client.create_sampling_client_async(
+            base_model=args.teacher_base_model or args.base_model,
+            model_path=args.teacher_model_path,
+        )
+
+        # student rollout 的采样参数；这些回答会成为 OPD 的 on-policy 轨迹。
+        sampling_params = trio.SamplingParams(
+            max_tokens=args.max_tokens,
+            seed=args.seed,
+            temperature=args.temperature,
+            top_p=args.top_p,
+            top_k=args.top_k,
+            stop=[x for x in [tokenizer.eos_token, "<|im_end|>"] if x],
+        )
+
+        # PyTRIO 的优化器参数；每步 forward_backward 后调用一次 optim_step。
+        adam_params = trio.AdamParams(
+            learning_rate=args.learning_rate,
+            beta1=args.beta1,
+            beta2=args.beta2,
+        )
+
+        swanlab_run = start_swanlab(args, len(dataset))
+        student_sampler = None
+
         for step in range(args.steps):
             step_start = time.time()
             if student_sampler is None or step % args.sampler_refresh_steps == 0:
                 # 严格 on-policy：用当前 student 权重采样。
-                student_sampler = training_client.save_weights_and_get_sampling_client()
-
-            # 一个 step 内会把 batch_size * group_size 条 completion 转成训练 datum。
-            datums = []
-            reverse_kls = []
-            completion_token_counts = []
+                student_sampler = await training_client.save_weights_and_get_sampling_client_async()
 
             # dataset 已经提前随机打乱；这里按 step 循环取 batch，超出后回绕。
             indices = [(step * args.batch_size + i) % len(dataset) for i in range(args.batch_size)]
-            for row in tqdm(dataset.select(indices), desc=f"OPD step {step}", unit="prompt"):
-                # 先把数学题渲染成模型可采样的 chat prompt。
-                prompt_ids = build_prompt(
-                    tokenizer,
-                    row["question"],
-                    args.question_suffix,
-                    args.enable_thinking,
+            batch_rows = dataset.select(indices)
+
+            # batch 内每道题的 rollout 彼此独立，可以并发请求远端 sampler。
+            rollout_tasks = [
+                run_prompt_rollout(
+                    student_sampler=student_sampler,
+                    teacher_client=teacher_client,
+                    tokenizer=tokenizer,
+                    row=row,
+                    args=args,
+                    sampling_params=sampling_params,
+                )
+                for row in batch_rows
+            ]
+            with tqdm(total=len(rollout_tasks), desc=f"OPD async step {step}", unit="prompt") as progress_bar:
+
+                async def run_and_track(rollout_task: Any) -> tuple[list[trio.Datum], list[float], list[int]]:
+                    result = await rollout_task
+                    progress_bar.update(1)
+                    return result
+
+                rollout_results = await asyncio.gather(
+                    *(run_and_track(rollout_task) for rollout_task in rollout_tasks)
                 )
 
-                # 用当前 student 策略对同一个 prompt 采样 group_size 条回答。
-                result = student_sampler.sample(
-                    prompt=trio.ModelInput.from_ints(prompt_ids),
-                    num_samples=args.group_size,
-                    sampling_params=sampling_params,
-                    return_text=False,
-                ).result()
-
-                for seq in result.sequences:
-                    ids = seq.tokens
-                    if not ids:
-                        continue
-
-                    # student_lps 是采样时旧策略 logprob，teacher_lps 是 teacher 对同一轨迹的 logprob。
-                    student_lps = [float(x) for x in seq.logprobs]
-                    teacher_lps = completion_teacher_logprobs(teacher_client, prompt_ids, ids)
-
-                    # OPD 的核心信号：reverse KL 越大，说明 student 比 teacher 更偏好该 token。
-                    reverse_kl = np.asarray(student_lps) - np.asarray(teacher_lps)
-                    advantages = -args.kl_penalty_coef * reverse_kl
-
-                    # importance_sampling 用 old_logprobs + advantages 来更新当前 student。
-                    datums.append(build_opd_datum(prompt_ids, ids, student_lps, advantages))
-                    reverse_kls.extend(reverse_kl.tolist())
-                    completion_token_counts.append(len(ids))
+            # 一个 step 内会把 batch_size * group_size 条 completion 转成训练 datum。
+            datums: list[trio.Datum] = []
+            reverse_kls: list[float] = []
+            completion_token_counts: list[int] = []
+            for rollout_datums, rollout_reverse_kls, rollout_completion_counts in rollout_results:
+                datums.extend(rollout_datums)
+                reverse_kls.extend(rollout_reverse_kls)
+                completion_token_counts.extend(rollout_completion_counts)
 
             if not datums:
                 raise RuntimeError("No OPD datums were built")
 
-            # 提交远程前向/反向，再做一次优化器更新。
-            fwd_bwd = training_client.forward_backward(datums, loss_fn="importance_sampling")
-            optim = training_client.optim_step(adam)
-            fwd_bwd_result = fwd_bwd.result()
-            optim.result()
+            # 异步版 PyTRIO：先异步提交远程前向/反向和优化器更新，再 await 对应 future。
+            fwd_bwd_future = await training_client.forward_backward_async(
+                datums,
+                loss_fn="importance_sampling",
+            )
+            optim_future = await training_client.optim_step_async(adam_params)
+            fwd_bwd_result = await fwd_bwd_future
+            await optim_future
 
             step_elapsed_time = time.time() - step_start
             completion_tokens_total = int(sum(completion_token_counts))
@@ -370,12 +452,13 @@ def main(args: argparse.Namespace) -> None:
                 "opd/reverse_kl_mean": float(np.mean(reverse_kls)),
                 "opd/reverse_kl_std": float(np.std(reverse_kls)),
                 "train/learning_rate": args.learning_rate,
+                "train/step": step,
                 "time/step_elapsed_time": step_elapsed_time,
             }
             metrics.update({f"trainer/{k}": float(v) for k, v in dict(fwd_bwd_result.metrics).items()})
-            if run is not None:
+            if swanlab_run is not None:
                 swanlab.log(metrics, step=step)
-            print(
+            tqdm.write(
                 f"step {step:03d}/{args.steps} | datums {len(datums)} | "
                 f"completion tokens mean {metrics['data/completion_tokens_mean']:.1f} | "
                 f"tokens/s {metrics['data/completion_tokens_per_second']:.1f} | "
@@ -384,19 +467,22 @@ def main(args: argparse.Namespace) -> None:
             )
 
         # 保存最终 LoRA 权重，后续可以用这个 path 创建 sampler 做推理。
-        save_result = training_client.save_weights_for_sampler(args.save_weights_name).result()
+        save_future = await training_client.save_weights_for_sampler_async(
+            name=args.save_weights_name
+        )
+        save_result = await save_future
         print(f"Saved weights: {save_result.path}")
-        if run is not None:
+        if swanlab_run is not None:
             swanlab.log({"save/weights_path": swanlab.Text(save_result.path)}, step=args.steps)
     finally:
         # 无论中间是否报错，都尽量正常结束日志。
-        if run is not None:
+        if swanlab_run is not None:
             swanlab.finish()
 
 
 if __name__ == "__main__":
     start = time.time()
-    main(parse_args())
+    asyncio.run(main(parse_args()))
     print("#" * 50)
     print("# all done")
     print(f"# train cost {time.time() - start:.2f}s")

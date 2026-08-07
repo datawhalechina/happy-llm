@@ -5,11 +5,11 @@
 2. 用当前 LoRA 权重保存出采样客户端；
 3. 每道题同步采样 group_size 个答案；
 4. 用 boxed answer reward 计算 group-relative advantage；
-5. 用 PyTRIO 的 importance_sampling / PPO 内置 loss，或本地 custom CISPO loss 做一次优化。
+5. 用 PyTRIO 的 importance_sampling / PPO 内置 loss 做一次优化。
 
 最小试跑：
 
-python docs/chapter8/grpo/train.py \
+python docs/chapter8/grpo/01-demo-sync.py \
     --steps 10 \
     --batch-size 4 \
     --group-size 8 \
@@ -22,19 +22,17 @@ import argparse
 import re
 import time
 from dataclasses import dataclass
-from typing import Any, Callable
+from typing import Any
 
 from datasets import Dataset, load_dataset
 import numpy as np
 import pytrio as trio
 import swanlab
-import torch
 from tqdm import tqdm
 
 
 QUESTION_SUFFIX = " Provide a numerical answer without units, written inside \\boxed{}."
-LOSS_FNS = ("importance_sampling", "ppo", "cispo")
-BUILTIN_LOSS_FNS = {"importance_sampling", "ppo"}
+LOSS_FNS = ("importance_sampling", "ppo")
 FEWSHOT_PREFIX = [
     {"role": "user", "content": "How many r's are in strawberry?" + QUESTION_SUFFIX},
     {
@@ -68,8 +66,6 @@ class GRPOConfig:
     beta1: float
     beta2: float
     loss_fn: str
-    cispo_clip_low_threshold: float
-    cispo_clip_high_threshold: float
     swanlab_mode: str
     swanlab_project: str
 
@@ -114,19 +110,7 @@ def parse_args() -> GRPOConfig:
         "--loss-fn",
         choices=LOSS_FNS,
         default="importance_sampling",
-        help="训练 loss：importance_sampling / ppo / cispo",
-    )
-    parser.add_argument(
-        "--cispo-clip-low-threshold",
-        type=float,
-        default=0.0,
-        help="CISPO custom loss 的 ratio 下界；官方默认 0.0，即不额外设置正下界",
-    )
-    parser.add_argument(
-        "--cispo-clip-high-threshold",
-        type=float,
-        default=4.0,
-        help="CISPO custom loss 的 ratio 上界；官方默认 4.0",
+        help="训练 loss：importance_sampling / ppo",
     )
     parser.add_argument(
         "--swanlab-mode",
@@ -136,15 +120,6 @@ def parse_args() -> GRPOConfig:
     )
     parser.add_argument("--swanlab-project", default="happy-llm-chapter8-grpo", help="SwanLab project")
     args = parser.parse_args()
-
-    if args.cispo_clip_low_threshold < 0:
-        raise ValueError("--cispo-clip-low-threshold must be >= 0")
-    if args.cispo_clip_high_threshold <= 0:
-        raise ValueError("--cispo-clip-high-threshold must be > 0")
-    if args.cispo_clip_low_threshold > args.cispo_clip_high_threshold:
-        raise ValueError(
-            "--cispo-clip-low-threshold must be <= --cispo-clip-high-threshold"
-        )
 
     return GRPOConfig(
         base_model=args.base_model,
@@ -161,138 +136,9 @@ def parse_args() -> GRPOConfig:
         beta1=args.beta1,
         beta2=args.beta2,
         loss_fn=args.loss_fn,
-        cispo_clip_low_threshold=args.cispo_clip_low_threshold,
-        cispo_clip_high_threshold=args.cispo_clip_high_threshold,
         swanlab_mode=args.swanlab_mode,
         swanlab_project=args.swanlab_project,
     )
-
-
-def build_custom_forward_datum(datum: trio.Datum) -> trio.Datum:
-    """custom loss 先走 cross_entropy forward，所以只传 target_tokens。"""
-    return trio.Datum(
-        model_input=datum.model_input,
-        loss_fn_inputs={
-            "target_tokens": datum.loss_fn_inputs["target_tokens"],
-        },
-    )
-
-
-def get_float_tensor_values(datum: trio.Datum, key: str) -> list[float]:
-    """从 Datum 里取出 float32 loss input，用于 custom loss 闭包。"""
-    return [float(value) for value in datum.loss_fn_inputs[key].data]
-
-
-def make_cispo_loss_fn(
-    sampling_logprobs_list: list[list[float]],
-    advantages_list: list[list[float]],
-    clip_low_threshold: float,
-    clip_high_threshold: float,
-) -> Callable[[list[trio.Datum], list[Any]], tuple[Any, dict[str, float]]]:
-    """创建 PyTRIO custom loss 版本的 CISPO。
-
-    官方 CISPO 公式：
-    loss = -sum(detach(clamp(exp(target_logprobs - sampling_logprobs))) *
-                target_logprobs * advantages)
-    """
-
-    def cispo_loss_fn(
-        data: list[trio.Datum],
-        logprobs_list: list[Any],
-    ) -> tuple[Any, dict[str, float]]:
-        if not (
-            len(data)
-            == len(logprobs_list)
-            == len(sampling_logprobs_list)
-            == len(advantages_list)
-        ):
-            raise ValueError("CISPO loss got mismatched data/logprob lengths")
-
-        # sampling_logprobs_list / advantages_list 来自 rollout 阶段构造好的 GRPO datum；
-        # logprobs_list 是 forward_backward_custom 重新 forward 当前模型后返回的可求导 logprob。
-        datum_losses = []
-        ratio_chunks = []
-        clipped_ratio_chunks = []
-        clip_fraction_chunks = []
-        loss_denominator = 0
-        train_tokens = 0
-
-        for target_logprobs, sampling_values, advantage_values in zip(
-            logprobs_list,
-            sampling_logprobs_list,
-            advantages_list,
-            strict=True,
-        ):
-            target_logprobs = target_logprobs.float()
-            device = target_logprobs.device
-            sampling_logprobs = torch.as_tensor(
-                sampling_values,
-                dtype=torch.float32,
-                device=device,
-            )
-            advantages = torch.as_tensor(
-                advantage_values,
-                dtype=torch.float32,
-                device=device,
-            )
-            if not (
-                len(target_logprobs)
-                == len(sampling_logprobs)
-                == len(advantages)
-            ):
-                raise ValueError("CISPO datum fields must have the same length")
-            loss_denominator += int(target_logprobs.numel())
-
-            # ratio 衡量当前模型和采样时旧策略对同一个 token 的概率变化。
-            prob_ratio = torch.exp(target_logprobs - sampling_logprobs)
-            clipped_ratio = torch.clamp(
-                prob_ratio,
-                min=clip_low_threshold,
-                max=clip_high_threshold,
-            )
-
-            # CISPO 的关键是 detach：clip 后的 ratio 只作为固定权重，
-            # 梯度只从 target_logprobs 这条路径回传。
-            cispo_objective = clipped_ratio.detach() * target_logprobs * advantages
-            datum_losses.append(-cispo_objective.sum())
-
-            # prompt token 的 advantage 是 0，这里只统计真正参与训练的 completion token。
-            train_mask = advantages != 0.0
-            if torch.any(train_mask):
-                detached_ratio = prob_ratio.detach()[train_mask]
-                detached_clipped_ratio = clipped_ratio.detach()[train_mask]
-                ratio_chunks.append(detached_ratio)
-                clipped_ratio_chunks.append(detached_clipped_ratio)
-                clip_fraction_chunks.append(
-                    (detached_ratio != detached_clipped_ratio).float()
-                )
-                train_tokens += int(train_mask.sum().item())
-
-        loss = torch.stack(datum_losses).sum()
-        loss_value = float(loss.detach().item())
-        metrics = {
-            # 监控只对齐 PyTRIO 内置 loss 的 loss_mean。
-            "loss_mean": (
-                loss_value / loss_denominator if loss_denominator > 0 else 0.0
-            ),
-            "cispo/train_tokens": float(train_tokens),
-            "cispo/clip_low_threshold": float(clip_low_threshold),
-            "cispo/clip_high_threshold": float(clip_high_threshold),
-        }
-        if ratio_chunks:
-            ratios = torch.cat(ratio_chunks)
-            clipped_ratios = torch.cat(clipped_ratio_chunks)
-            clip_fractions = torch.cat(clip_fraction_chunks)
-            metrics.update(
-                {
-                    "cispo/ratio_mean": float(ratios.mean().item()),
-                    "cispo/clipped_ratio_mean": float(clipped_ratios.mean().item()),
-                    "cispo/clip_fraction": float(clip_fractions.mean().item()),
-                }
-            )
-        return loss, metrics
-
-    return cispo_loss_fn
 
 
 def extract_boxed(text: str) -> str | None:
@@ -510,8 +356,6 @@ def init_swanlab_run(
             "beta1": config.beta1,
             "beta2": config.beta2,
             "loss_fn": config.loss_fn,
-            "cispo_clip_low_threshold": config.cispo_clip_low_threshold,
-            "cispo_clip_high_threshold": config.cispo_clip_high_threshold,
             "swanlab_mode": config.swanlab_mode,
             "seed": config.seed,
             "weights_name": run_name,
@@ -623,35 +467,11 @@ def main(config: GRPOConfig) -> None:
                     datums.append(build_grpo_datum(prompt_tokens, sample))
 
             if datums:
-                # importance_sampling / ppo 都使用 PyTRIO 内置 loss，同一套 GRPO datum 可复用。
-                if config.loss_fn in BUILTIN_LOSS_FNS:
-                    fwd_bwd_future = training_client.forward_backward(
-                        datums,
-                        loss_fn=config.loss_fn,
-                    )
-                # CISPO 走本地 custom loss：forward datums 只保留 target_tokens，
-                # rollout 旧 logprobs 和 advantages 通过闭包传给 loss_fn。
-                elif config.loss_fn == "cispo":
-                    custom_datums = [
-                        build_custom_forward_datum(datum) for datum in datums
-                    ]
-                    sampling_logprobs_list = [
-                        get_float_tensor_values(datum, "logprobs") for datum in datums
-                    ]
-                    advantages_list = [
-                        get_float_tensor_values(datum, "advantages") for datum in datums
-                    ]
-                    fwd_bwd_future = training_client.forward_backward_custom(
-                        custom_datums,
-                        make_cispo_loss_fn(
-                            sampling_logprobs_list=sampling_logprobs_list,
-                            advantages_list=advantages_list,
-                            clip_low_threshold=config.cispo_clip_low_threshold,
-                            clip_high_threshold=config.cispo_clip_high_threshold,
-                        ),
-                    )
-                else:
-                    raise ValueError(f"Unsupported loss function: {config.loss_fn}")
+                # 两种 loss 都由 PyTRIO 内置实现，并复用同一套 GRPO Datum。
+                fwd_bwd_future = training_client.forward_backward(
+                    datums,
+                    loss_fn=config.loss_fn,
+                )
 
                 # 同步版 PyTRIO：提交远程前向/反向和优化器更新后，显式 `.result()` 等待完成。
                 optim_future = training_client.optim_step(adam_params)
@@ -680,9 +500,9 @@ def main(config: GRPOConfig) -> None:
                     "datums": len(datums),
                     "train_tokens": train_tokens,
                     **{
-                        key if key.startswith("cispo/") else f"trainer/{key}": value
+                        f"trainer/{key}": value
                         for key, value in loss_metrics.items()
-                        if key == "loss_mean" or key.startswith("cispo/")
+                        if key == "loss_mean"
                     },
                 }
                 if loss_mean is not None:
