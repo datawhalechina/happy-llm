@@ -1,0 +1,12 @@
+datasets>=5.0.0
+deepseek-search @ git+https://github.com/KMnO4-zx/deepseek-search.git@6215c8dbb7347f94e9dcea6e741df5918449d6c4
+httpx>=0.28.0
+math-verify>=0.9.0
+matplotlib>=3.11.0
+modelscope>=1.38.1
+numpy>=2.5.1
+pytrio==0.2.6
+python-dotenv>=1.2.2
+swanlab==0.9.2
+torch>=2.9.1
+tqdm>=4.68.3
