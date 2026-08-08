@@ -52,7 +52,10 @@
 | [Chapter 5: Building Large Models from Scratch](./docs/chapter5/第五章%20动手搭建大模型.md) | Implementing LLaMA2, training Tokenizer, pre-training small LLM | ✅ |
 | [Chapter 6: Large Model Training Practice](./docs/chapter6/第六章%20大模型训练流程实践.md) | Pre-training, supervised fine-tuning, LoRA/QLoRA efficient fine-tuning | 🚧 |
 | [Chapter 7: Large Model Applications](./docs/chapter7/第七章%20大模型应用.md) | Model evaluation, RAG retrieval enhancement, Agent intelligent agents | ✅ |
+| [Chapter 8: Agentic-RL](./docs/chapter8/第八章%20大模型强化学习.md) | GRPO, OPD, Search-R1, and ReTool (Coding Agent-RL) | ✅ |
 | [Extra Chapter LLM Blog](./Extra-Chapter/) | Excellent Learning Notes/Blog on LLMs ，Welcome PR ！| 🚧 |
+
+> Chapter 8 focuses on GRPO, OPD, Search-R1, and ReTool. For more Agentic RL algorithms, training code, and hands-on experiments, visit [agentic-rl-lab](https://github.com/KMnO4-zx/agentic-rl-lab), another repository maintained by the author and updated more frequently with new algorithms and environments.
 
 ### Extra Chapter LLM Blog
 
