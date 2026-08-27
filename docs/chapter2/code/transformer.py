@@ -36,8 +36,8 @@ class MultiHeadAttention(nn.Module):
         self.wq = nn.Linear(args.n_embd, self.n_heads * self.head_dim, bias=False)
         self.wk = nn.Linear(args.n_embd, self.n_heads * self.head_dim, bias=False)
         self.wv = nn.Linear(args.n_embd, self.n_heads * self.head_dim, bias=False)
-        # 输出权重矩阵，维度为 dim x dim（head_dim = dim / n_heads）
-        self.wo = nn.Linear(self.n_heads * self.head_dim, args.dim, bias=False)
+        # 输出权重矩阵，输出与残差流相连，维度需与 n_embd 一致（head_dim = dim / n_heads）
+        self.wo = nn.Linear(self.n_heads * self.head_dim, args.n_embd, bias=False)
         # 注意力的 dropout
         self.attn_dropout = nn.Dropout(args.dropout)
         # 残差连接的 dropout
@@ -139,7 +139,7 @@ class EncoderLayer(nn.Module):
         # Encoder 不需要掩码，传入 is_causal=False
         self.attention = MultiHeadAttention(args, is_causal=False)
         self.fnn_norm = LayerNorm(args.n_embd)
-        self.feed_forward = MLP(args.dim, args.dim, args.dropout)
+        self.feed_forward = MLP(args.n_embd, args.dim, args.dropout)
 
     def forward(self, x):
         # Layer Norm
@@ -177,7 +177,7 @@ class DecoderLayer(nn.Module):
         self.attention = MultiHeadAttention(args, is_causal=False)
         self.ffn_norm = LayerNorm(args.n_embd)
         # 第三个部分是 MLP
-        self.feed_forward = MLP(args.dim, args.dim, args.dropout)
+        self.feed_forward = MLP(args.n_embd, args.dim, args.dropout)
 
     def forward(self, x, enc_out):
         # Layer Norm
