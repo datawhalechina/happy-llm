@@ -9,10 +9,10 @@ import pandas as pd
 import torch
 from torch import optim
 from torch.utils.data import DataLoader
-from contextlib import nullcontext
 
 from transformers import AutoTokenizer
 
+from amp_utils import configure_amp
 from k_model import ModelConfig, Transformer
 from dataset import PretrainDataset
 
@@ -287,9 +287,8 @@ if __name__ == "__main__":
     # 确定设备类型（用于选择合适的上下文管理器）
     device_type = "cuda" if "cuda" in args.device else "cpu"
 
-    # 设置混合精度训练的上下文管理器
-    # CPU训练时使用nullcontext，GPU训练时使用autocast
-    ctx = nullcontext() if device_type == "cpu" else torch.cuda.amp.autocast()
+    # 按参数显式选择混合精度类型；仅FP16启用梯度缩放
+    ctx, scaler = configure_amp(device_type, args.dtype)
 
     # ==================== 模型和数据初始化 ====================
     # 初始化模型和分词器
@@ -309,10 +308,6 @@ if __name__ == "__main__":
     )
 
     # ==================== 优化器和训练组件初始化 ====================
-    # 初始化混合精度训练的梯度缩放器
-    # 只有在使用float16或bfloat16时才启用
-    scaler = torch.cuda.amp.GradScaler(enabled=(args.dtype in ['float16', 'bfloat16']))
-    
     # 初始化Adam优化器
     optimizer = optim.Adam(model.parameters(), lr=args.learning_rate)
 

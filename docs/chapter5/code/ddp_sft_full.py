@@ -8,10 +8,10 @@ import pandas as pd
 import torch
 from torch import optim
 from torch.utils.data import DataLoader
-from contextlib import nullcontext
 
 from transformers import AutoTokenizer
 
+from amp_utils import configure_amp
 from k_model import ModelConfig, Transformer
 from dataset import SFTDataset
 
@@ -202,11 +202,8 @@ if __name__ == "__main__":
     torch.manual_seed(42)
     device_type = "cuda" if "cuda" in args.device else "cpu"
 
-    # 在生成 ctx 之前，先将字符串转为 torch 的 dtype 对象
-    ptdtype = {'float32': torch.float32, 'bfloat16': torch.bfloat16, 'float16': torch.float16}[args.dtype]
-    
-    # 上下文管理器
-    ctx = nullcontext() if device_type == "cpu" else torch.cuda.amp.autocast(dtype=ptdtype)
+    # 按参数显式选择混合精度类型；仅FP16启用梯度缩放
+    ctx, scaler = configure_amp(device_type, args.dtype)
 
     # 初始化模型和分词器
     model, tokenizer = init_model()
@@ -222,8 +219,7 @@ if __name__ == "__main__":
         num_workers=args.num_workers
     )
 
-    # 缩放器和优化器
-    scaler = torch.cuda.amp.GradScaler(enabled=(args.dtype in ['float16', 'bfloat16']))
+    # 优化器
     optimizer = optim.AdamW(model.parameters(), lr=args.learning_rate)
 
     # 开始训练
