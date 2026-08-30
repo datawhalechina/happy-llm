@@ -116,4 +116,6 @@ class SFTDataset(Dataset):
         X = np.array(input_id[:-1]).astype(np.int64)
         Y = np.array(input_id[1:]).astype(np.int64)
         loss_mask = np.array(loss_mask[1:]).astype(np.int64)
+        # 使用独立的 ignore_index，避免 pad_token 与 eos_token 共用 id 时忽略结束符
+        Y = np.where(loss_mask == 1, Y, -100).astype(np.int64)
         return torch.from_numpy(X), torch.from_numpy(Y), torch.from_numpy(loss_mask)
