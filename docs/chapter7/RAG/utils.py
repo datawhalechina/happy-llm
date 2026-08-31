@@ -130,9 +130,11 @@ class ReadFiles:
                     curr_len = 0
 
                 for i, chunk_part in enumerate(split_line(line)):
-                    if i > 0 and chunk_text:
+                    if chunk_text:
                         chunk_part = add_overlap(
-                            chunk_text[-1], chunk_part, separator=""
+                            chunk_text[-1],
+                            chunk_part,
+                            separator='\n' if i == 0 else '',
                         )
                     chunk_text.append(chunk_part)
 

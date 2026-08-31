@@ -47,6 +47,17 @@ class GetChunkTest(unittest.TestCase):
         self.assertTrue(all(len(enc.encode(chunk)) <= 6 for chunk in chunks))
         self.assertEqual(["alpha", "alpha"], chunks[-1].splitlines()[-2:])
 
+    def test_overlap_is_kept_before_first_part_of_long_line(self):
+        chunks = ReadFiles.get_chunk(
+            "alpha\n" + "你好世界" * 20,
+            max_token_len=10,
+            cover_content=2,
+        )
+
+        self.assertEqual("alpha", chunks[0])
+        self.assertTrue(chunks[1].startswith("alpha\n"))
+        self.assertTrue(all(len(enc.encode(chunk)) <= 10 for chunk in chunks))
+
     def test_rejects_invalid_token_budgets(self):
         invalid_arguments = (
             {"max_token_len": 0, "cover_content": 0},
