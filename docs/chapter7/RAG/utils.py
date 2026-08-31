@@ -59,6 +59,14 @@ class ReadFiles:
 
     @classmethod
     def get_chunk(cls, text: str, max_token_len: int = 600, cover_content: int = 150):
+        if max_token_len <= 0:
+            raise ValueError("max_token_len must be greater than 0")
+        if cover_content < 0 or cover_content >= max_token_len:
+            raise ValueError(
+                "cover_content must be greater than or equal to 0 "
+                "and less than max_token_len"
+            )
+
         chunk_text = []
 
         curr_len = 0
@@ -72,7 +80,7 @@ class ReadFiles:
             line = line.strip()
             line_len = len(enc.encode(line))
             
-            if line_len > max_token_len:
+            if line_len > token_len:
                 # 如果单行长度就超过限制，则将其分割成多个块
                 # 先保存当前块（如果有内容）
                 if curr_chunk:
@@ -95,7 +103,13 @@ class ReadFiles:
                     # 添加覆盖内容（除了第一个块）
                     if i > 0 and chunk_text:
                         prev_chunk = chunk_text[-1]
-                        cover_part = prev_chunk[-cover_content:] if len(prev_chunk) > cover_content else prev_chunk
+                        prev_tokens = enc.encode(prev_chunk)
+                        cover_tokens = (
+                            prev_tokens[-cover_content:]
+                            if cover_content
+                            else []
+                        )
+                        cover_part = enc.decode(cover_tokens)
                         chunk_part = cover_part + chunk_part
                     
                     chunk_text.append(chunk_part)
@@ -104,7 +118,7 @@ class ReadFiles:
                 curr_chunk = ''
                 curr_len = 0
                 
-            elif curr_len + line_len + 1 <= token_len:  # +1 for newline
+            elif curr_len + line_len + (1 if curr_chunk else 0) <= token_len:
                 # 当前行可以加入当前块
                 if curr_chunk:
                     curr_chunk += '\n'
@@ -119,9 +133,16 @@ class ReadFiles:
                 # 开始新块，添加覆盖内容
                 if chunk_text:
                     prev_chunk = chunk_text[-1]
-                    cover_part = prev_chunk[-cover_content:] if len(prev_chunk) > cover_content else prev_chunk
+                    prev_tokens = enc.encode(prev_chunk)
+                    cover_tokens = (
+                        prev_tokens[-cover_content:]
+                        if cover_content
+                        else []
+                    )
+                    cover_part = enc.decode(cover_tokens)
                     curr_chunk = cover_part + '\n' + line
-                    curr_len = len(enc.encode(cover_part)) + 1 + line_len
+                    # curr_len 只记录新增内容；重叠内容已有独立预算。
+                    curr_len = 1 + line_len
                 else:
                     curr_chunk = line
                     curr_len = line_len
