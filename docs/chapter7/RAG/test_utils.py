@@ -22,6 +22,20 @@ class GetChunkTest(unittest.TestCase):
             expected_overlap = enc.decode(enc.encode(previous)[-cover_content:])
             self.assertTrue(current.startswith(expected_overlap))
 
+    def test_unicode_character_is_not_split_across_token_boundaries(self):
+        text = "😊"
+        self.assertEqual(2, len(enc.encode(text)))
+
+        chunks = ReadFiles.get_chunk(
+            text,
+            max_token_len=2,
+            cover_content=1,
+        )
+
+        self.assertEqual([text], chunks)
+        self.assertNotIn("\ufffd", "".join(chunks))
+        self.assertTrue(all(len(enc.encode(chunk)) <= 2 for chunk in chunks))
+
     def test_overlap_does_not_consume_new_content_budget_twice(self):
         chunks = ReadFiles.get_chunk(
             "\n".join(["alpha"] * 4),

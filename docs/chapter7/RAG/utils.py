@@ -68,86 +68,96 @@ class ReadFiles:
             )
 
         chunk_text = []
+        token_len = max_token_len - cover_content
+
+        def split_line(line: str) -> list[str]:
+            """按完整 Unicode 字符切分，并优先遵守新增内容预算。"""
+            parts = []
+            start = 0
+            while start < len(line):
+                best_end = None
+                for end in range(start + 1, len(line) + 1):
+                    if len(enc.encode(line[start:end])) <= token_len:
+                        best_end = end
+                    else:
+                        break
+                if best_end is None:
+                    for end in range(start + 1, len(line) + 1):
+                        if len(enc.encode(line[start:end])) <= max_token_len:
+                            best_end = end
+                        else:
+                            break
+                if best_end is None:
+                    raise ValueError(
+                        "单个 Unicode 字符的 Token 数超过 max_token_len"
+                    )
+                parts.append(line[start:best_end])
+                start = best_end
+            return parts
+
+        def add_overlap(previous: str, payload: str, separator: str) -> str:
+            """从完整字符边界提取重叠，并确保最终片段不超过总预算。"""
+            if not cover_content:
+                return payload
+            overlap = ""
+            for start in range(len(previous) - 1, -1, -1):
+                candidate = previous[start:]
+                if len(enc.encode(candidate)) <= cover_content:
+                    overlap = candidate
+                else:
+                    break
+            while overlap:
+                candidate = overlap + separator + payload
+                if len(enc.encode(candidate)) <= max_token_len:
+                    return candidate
+                overlap = overlap[1:]
+            return payload
 
         curr_len = 0
         curr_chunk = ''
-
-        token_len = max_token_len - cover_content
         lines = text.splitlines()  # 假设以换行符分割文本为行
 
         for line in lines:
             # 保留空格，只移除行首行尾空格
             line = line.strip()
             line_len = len(enc.encode(line))
-            
+
             if line_len > token_len:
-                # 如果单行长度就超过限制，则将其分割成多个块
-                # 先保存当前块（如果有内容）
+                # 如果单行长度就超过新增内容预算，则按完整字符切分
                 if curr_chunk:
                     chunk_text.append(curr_chunk)
                     curr_chunk = ''
                     curr_len = 0
-                
-                # 将长行按token长度分割
-                line_tokens = enc.encode(line)
-                num_chunks = (len(line_tokens) + token_len - 1) // token_len
-                
-                for i in range(num_chunks):
-                    start_token = i * token_len
-                    end_token = min(start_token + token_len, len(line_tokens))
-                    
-                    # 解码token片段回文本
-                    chunk_tokens = line_tokens[start_token:end_token]
-                    chunk_part = enc.decode(chunk_tokens)
-                    
-                    # 添加覆盖内容（除了第一个块）
+
+                for i, chunk_part in enumerate(split_line(line)):
                     if i > 0 and chunk_text:
-                        prev_chunk = chunk_text[-1]
-                        prev_tokens = enc.encode(prev_chunk)
-                        cover_tokens = (
-                            prev_tokens[-cover_content:]
-                            if cover_content
-                            else []
+                        chunk_part = add_overlap(
+                            chunk_text[-1], chunk_part, separator=""
                         )
-                        cover_part = enc.decode(cover_tokens)
-                        chunk_part = cover_part + chunk_part
-                    
                     chunk_text.append(chunk_part)
-                
-                # 重置当前块状态
+
                 curr_chunk = ''
                 curr_len = 0
-                
+
             elif curr_len + line_len + (1 if curr_chunk else 0) <= token_len:
-                # 当前行可以加入当前块
                 if curr_chunk:
                     curr_chunk += '\n'
                     curr_len += 1
                 curr_chunk += line
                 curr_len += line_len
             else:
-                # 当前行无法加入当前块，开始新块
                 if curr_chunk:
                     chunk_text.append(curr_chunk)
-                
-                # 开始新块，添加覆盖内容
+
                 if chunk_text:
-                    prev_chunk = chunk_text[-1]
-                    prev_tokens = enc.encode(prev_chunk)
-                    cover_tokens = (
-                        prev_tokens[-cover_content:]
-                        if cover_content
-                        else []
+                    curr_chunk = add_overlap(
+                        chunk_text[-1], line, separator='\n'
                     )
-                    cover_part = enc.decode(cover_tokens)
-                    curr_chunk = cover_part + '\n' + line
-                    # curr_len 只记录新增内容；重叠内容已有独立预算。
-                    curr_len = 1 + line_len
+                    curr_len = line_len + (1 if curr_chunk != line else 0)
                 else:
                     curr_chunk = line
                     curr_len = line_len
 
-        # 添加最后一个块（如果有内容）
         if curr_chunk:
             chunk_text.append(curr_chunk)
 
