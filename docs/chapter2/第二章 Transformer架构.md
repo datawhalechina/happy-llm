@@ -96,7 +96,7 @@ $$
 此处的 K 即为将所有 Key 对应的词向量堆叠形成的矩阵。基于矩阵乘法的定义，x 即为 q 与每一个 k 值的点积。现在我们得到的 x 即反映了 Query 和每一个 Key 的相似程度，我们再通过一个 Softmax 层将其转化为和为 1 的权重：
 
 $$
-\text{softmax}(x)_i = \frac{e^{xi}}{\sum_{j}e^{x_j}}
+\operatorname{softmax}(x)_i = \frac{e^{x_i}}{\sum_{j}e^{x_j}}
 $$
 
 这样，得到的向量就能够反映 Query 和每一个 Key 的相似程度，同时又相加权重为 1，也就是我们的注意力分数了。最后，我们再将得到的注意力分数和值向量做对应乘积即可。根据上述过程，我们就可以得到注意力机制计算的基本公式：
@@ -361,7 +361,7 @@ class MLP(nn.Module):
         super().__init__()
         # 定义第一层线性变换，从输入维度到隐藏维度
         self.w1 = nn.Linear(dim, hidden_dim, bias=False)
-        # 定义第二层线性变换，从隐藏维度到输入维度
+        # 定义第二层线性变换，从隐藏维度到输出维度（此处与输入维度相同）
         self.w2 = nn.Linear(hidden_dim, dim, bias=False)
         # 定义dropout层，用于防止过拟合
         self.dropout = nn.Dropout(dropout)
@@ -411,7 +411,7 @@ $$
 - 在训练时，Batch Norm 需要保存每个 step 的统计信息（均值和方差）。在测试时，由于变长句子的特性，测试集可能出现比训练集更长的句子，所以对于后面位置的 step，是没有训练的统计量使用的；
 - 应用 Batch Norm，每个 step 都需要去保存和计算 batch 统计量，耗时又耗力
 
-因此，出现了在深度神经网络中更常用、效果更好的层归一化（Layer Norm）。相较于 Batch Norm 在每一层统计所有样本的均值和方差，Layer Norm 在每个样本上计算其所有层的均值和方差，从而使每个样本的分布达到稳定。Layer Norm 的归一化方式其实和 Batch Norm 是完全一样的，只是统计统计量的维度不同。
+因此，出现了在深度神经网络中更常用、效果更好的层归一化（Layer Norm）。相较于 Batch Norm 在每一层统计所有样本的均值和方差，Layer Norm 在每个样本上计算其所有层的均值和方差，从而使每个样本的分布达到稳定。Layer Norm 的归一化方式其实和 Batch Norm 是完全一样的，只是统计量的维度不同。
 
 基于上述进行归一化的公式，我们可以简单地实现一个 Layer Norm 层：
 
@@ -457,7 +457,7 @@ h = x + self.attention.forward(self.attention_norm(x))
 out = h + self.feed_forward.forward(self.fnn_norm(h))
 ```
 
-在上文代码中，self.attention_norm 和 self.fnn_norm 都是 LayerNorm 层，self.attn 是注意力层，而 self.feed_forward 是前馈神经网络。
+在上文代码中，self.attention_norm 和 self.fnn_norm 都是 LayerNorm 层，self.attention 是注意力层，而 self.feed_forward 是前馈神经网络。
 
 ### 2.2.5 Encoder
 
@@ -604,16 +604,16 @@ self.tok_embeddings = nn.Embedding(args.vocab_size, args.dim)
 
 但从上文对注意力机制的分析我们可以发现，在注意力机制的计算过程中，对于序列中的每一个 token，其他各个位置对其来说都是平等的，即“我喜欢你”和“你喜欢我”在注意力机制看来是完全相同的，但无疑这是注意力机制存在的一个巨大问题。因此，为使用序列顺序信息，保留序列中的相对位置信息，Transformer 采用了位置编码机制，该机制也在之后被多种模型沿用。
 
-​位置编码，即根据序列中 token 的相对位置对其进行编码，再将位置编码加入词向量编码中。位置编码的方式有很多，Transformer 使用了正余弦函数来进行位置编码（绝对位置编码Sinusoidal），其编码方式为：
+​位置编码，即根据序列中 token 的相对位置对其进行编码，再将位置编码加入词向量编码中。位置编码的方式有很多，Transformer 使用了正余弦函数来进行位置编码（绝对位置编码 Sinusoidal），其编码方式为：
 
 $$
 PE(pos, 2i) = sin(pos/10000^{2i/d_{model}})\\
 PE(pos, 2i+1) = cos(pos/10000^{2i/d_{model}})
 $$
 
-上式中，pos 为 token 在句子中的位置，2i 和 2i+1 则指示了位置编码向量的维度索引是奇数还是偶数，从上式中我们可以看出对于奇数维度和偶数维度，Transformer 采用了不同的函数进行编码。
+上式中，pos 为 token 在句子中的位置，2i 和 2i+1 分别对应偶数与奇数维度索引。从上式中我们可以看出，Transformer 对偶数维度和奇数维度分别采用了不同的函数进行编码。
 
-我们以一个简单的例子来说明位置编码的计算过程：假如我们输入的是一个长度为 4 的句子"I like to code"，我们可以得到下面的词向量矩阵 $\rm x$ ，其中每一行代表的就是一个词向量， $\rm x_0=[0.1,0.2,0.3,0.4]$ 对应的就是“I”的词向量，它的pos就是为0，以此类推，第二行代表的是“like”的词向量，它的pos就是1：
+我们以一个简单的例子来说明位置编码的计算过程：假如我们输入的是一个长度为 4 的句子"I like to code"，我们可以得到下面的词向量矩阵 $\rm x$ ，其中每一行代表一个词向量， $\rm x_0=[0.1,0.2,0.3,0.4]$ 对应“I”的词向量，其 pos 为 0。以此类推，第二行代表“like”的词向量，其 pos 为 1：
 
 $$
 \rm x = \begin{bmatrix} 
@@ -785,7 +785,7 @@ class PositionalEncoding(nn.Module):
 
 ### 2.3.3 一个完整的 Transformer
 
-上述所有组件，再按照下图的 Tranfromer 结构拼接起来就是一个完整的 Transformer 模型了，如图2.7所示：
+上述所有组件，再按照下图的 Transformer 结构拼接起来就是一个完整的 Transformer 模型了，如图2.7所示：
 
 <div align="center">
   <img src="https://raw.githubusercontent.com/datawhalechina/happy-llm/main/docs/images/2-figures/3-1.png" alt="图片描述" width="80%"/>
