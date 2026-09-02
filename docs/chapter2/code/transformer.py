@@ -54,8 +54,12 @@ class MultiHeadAttention(nn.Module):
 
     def forward(self, q: torch.Tensor, k: torch.Tensor, v: torch.Tensor):
 
-        # 获取批次大小和序列长度，[batch_size, seq_len, dim]
-        bsz, seqlen, _ = q.shape
+        # Query 与 Key/Value 的序列长度可能不同，例如 Decoder 的交叉注意力
+        bsz, q_len, _ = q.shape
+        k_bsz, kv_len, _ = k.shape
+        v_bsz, v_len, _ = v.shape
+        assert bsz == k_bsz == v_bsz, "Q、K、V 的 batch size 必须相同"
+        assert kv_len == v_len, "K 和 V 的序列长度必须相同"
 
         # 计算查询（Q）、键（K）、值（V）,输入通过参数矩阵层，维度为 (B, T, n_embed) x (n_embed, dim) -> (B, T, dim)
         xq, xk, xv = self.wq(q), self.wk(k), self.wv(v)
@@ -64,9 +68,9 @@ class MultiHeadAttention(nn.Module):
         # 因为在注意力计算中我们是取了后两个维度参与计算
         # 为什么要先按B*T*n_head*C//n_head展开再互换1、2维度而不是直接按注意力输入展开，是因为view的展开方式是直接把输入全部排开，
         # 然后按要求构造，可以发现只有上述操作能够实现我们将每个头对应部分取出来的目标
-        xq = xq.view(bsz, seqlen, self.n_heads, self.head_dim)
-        xk = xk.view(bsz, seqlen, self.n_heads, self.head_dim)
-        xv = xv.view(bsz, seqlen, self.n_heads, self.head_dim)
+        xq = xq.view(bsz, q_len, self.n_heads, self.head_dim)
+        xk = xk.view(bsz, kv_len, self.n_heads, self.head_dim)
+        xv = xv.view(bsz, kv_len, self.n_heads, self.head_dim)
         xq = xq.transpose(1, 2)
         xk = xk.transpose(1, 2)
         xv = xv.transpose(1, 2)
@@ -78,19 +82,19 @@ class MultiHeadAttention(nn.Module):
         if self.is_causal:
             assert hasattr(self, 'mask')
             # 这里截取到序列长度，因为有些序列可能比 max_seq_len 短
-            scores = scores + self.mask[:, :, :seqlen, :seqlen]
-        # 计算 softmax，维度为 (B, nh, T, T)
+            scores = scores + self.mask[:, :, :q_len, :kv_len]
+        # 计算 softmax，维度为 (B, nh, q_len, kv_len)
         scores = F.softmax(scores.float(), dim=-1).type_as(xq)
         # 做 Dropout
         scores = self.attn_dropout(scores)
-        # V * Score，维度为(B, nh, T, T) x (B, nh, T, hs) -> (B, nh, T, hs)
+        # Score * V，维度为(B, nh, q_len, kv_len) x (B, nh, kv_len, hs) -> (B, nh, q_len, hs)
         output = torch.matmul(scores, xv)
 
         # 恢复时间维度并合并头。
         # 将多头的结果拼接起来, 先交换维度为 (B, T, n_head, dim // n_head)，再拼接成 (B, T, n_head * dim // n_head)
         # contiguous 函数用于重新开辟一块新内存存储，因为Pytorch设置先transpose再view会报错，
         # 因为view直接基于底层存储得到，然而transpose并不会改变底层存储，因此需要额外存储
-        output = output.transpose(1, 2).contiguous().view(bsz, seqlen, -1)
+        output = output.transpose(1, 2).contiguous().view(bsz, q_len, -1)
 
         # 最终投影回残差流。
         output = self.wo(output)
@@ -210,8 +214,6 @@ class PositionalEncoding(nn.Module):
 
     def __init__(self, args):
         super(PositionalEncoding, self).__init__()
-        # Dropout 层
-        # self.dropout = nn.Dropout(p=args.dropout)
 
         # block size 是序列的最大长度
         pe = torch.zeros(args.block_size, args.n_embd)
@@ -280,28 +282,26 @@ class Transformer(nn.Module):
 
     '''前向计算函数'''
 
-    def forward(self, idx, targets=None):
-        # 输入为 idx，维度为 (batch size, sequence length, 1)；targets 为目标序列，用于计算 loss
-        device = idx.device
-        b, t = idx.size()
-        assert t <= self.args.block_size, f"不能计算该序列，该序列长度为 {t}, 最大序列长度只有 {self.args.block_size}"
+    def forward(self, src, tgt, targets=None):
+        # src 和 tgt 的维度均为 (batch size, sequence length)；targets 用于计算 loss
+        src_batch_size, src_len = src.size()
+        tgt_batch_size, tgt_len = tgt.size()
+        assert src_batch_size == tgt_batch_size, "源序列和目标序列的 batch size 必须相同"
+        assert src_len <= self.args.block_size, f"不能计算源序列，该序列长度为 {src_len}, 最大序列长度只有 {self.args.block_size}"
+        assert tgt_len <= self.args.block_size, f"不能计算目标序列，该序列长度为 {tgt_len}, 最大序列长度只有 {self.args.block_size}"
 
-        # 通过 self.transformer
-        # 首先将输入 idx 通过 Embedding 层，得到维度为 (batch size, sequence length, n_embd)
-        print("idx", idx.size())
-        # 通过 Embedding 层
-        tok_emb = self.transformer.wte(idx)
-        print("tok_emb", tok_emb.size())
-        # 然后通过位置编码
-        pos_emb = self.transformer.wpe(tok_emb)
-        # 再进行 Dropout
-        x = self.transformer.drop(pos_emb)
-        # 然后通过 Encoder
-        print("x after wpe:", x.size())
-        enc_out = self.transformer.encoder(x)
+        # 源序列经过 Embedding、位置编码和 Dropout 后输入 Encoder
+        print("src", src.size())
+        src_emb = self.transformer.drop(self.transformer.wpe(self.transformer.wte(src)))
+        print("src after wpe:", src_emb.size())
+        enc_out = self.transformer.encoder(src_emb)
         print("enc_out:", enc_out.size())
-        # 再通过 Decoder
-        x = self.transformer.decoder(x, enc_out)
+
+        # 目标序列独立编码后，与 Encoder 输出一起输入 Decoder
+        print("tgt", tgt.size())
+        tgt_emb = self.transformer.drop(self.transformer.wpe(self.transformer.wte(tgt)))
+        print("tgt after wpe:", tgt_emb.size())
+        x = self.transformer.decoder(tgt_emb, enc_out)
         print("x after decoder:", x.size())
 
         if targets is not None:
@@ -321,10 +321,18 @@ class Transformer(nn.Module):
 
 def main():
     args = ModelArgs(100, 10, 100, 0.1, 512, 1000, 1000, 2)
-    text = "我喜欢快乐地学习大模型"
+    src_text = "我喜欢快乐地学习大模型"
+    tgt_text = "我喜欢学习"
     tokenizer = BertTokenizer.from_pretrained('bert-base-chinese')
-    inputs_token = tokenizer(
-        text,
+    src_token = tokenizer(
+        src_text,
+        return_tensors='pt',
+        max_length=args.max_seq_len,
+        truncation=True,
+        padding='max_length'
+    )
+    tgt_token = tokenizer(
+        tgt_text,
         return_tensors='pt',
         max_length=args.max_seq_len,
         truncation=True,
@@ -332,8 +340,9 @@ def main():
     )
     args.vocab_size = tokenizer.vocab_size
     transformer = Transformer(args)
-    inputs_id = inputs_token['input_ids']
-    logits, loss = transformer.forward(inputs_id)
+    src_ids = src_token['input_ids']
+    tgt_ids = tgt_token['input_ids']
+    logits, loss = transformer.forward(src_ids, tgt_ids)
     print(logits)
     predicted_ids = torch.argmax(logits, dim=-1).item()
     output = tokenizer.decode(predicted_ids)

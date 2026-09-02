@@ -281,8 +281,12 @@ class MultiHeadAttention(nn.Module):
 
     def forward(self, q: torch.Tensor, k: torch.Tensor, v: torch.Tensor):
 
-        # 获取批次大小和序列长度，[batch_size, seq_len, dim]
-        bsz, seqlen, _ = q.shape
+        # Query 与 Key/Value 的序列长度可能不同，例如 Decoder 的交叉注意力
+        bsz, q_len, _ = q.shape
+        k_bsz, kv_len, _ = k.shape
+        v_bsz, v_len, _ = v.shape
+        assert bsz == k_bsz == v_bsz, "Q、K、V 的 batch size 必须相同"
+        assert kv_len == v_len, "K 和 V 的序列长度必须相同"
 
         # 计算查询（Q）、键（K）、值（V）,输入通过参数矩阵层，维度为 (B, T, n_embed) x (n_embed, dim) -> (B, T, dim)
         xq, xk, xv = self.wq(q), self.wk(k), self.wv(v)
@@ -291,9 +295,9 @@ class MultiHeadAttention(nn.Module):
         # 因为在注意力计算中我们是取了后两个维度参与计算
         # 为什么要先按B*T*n_head*C//n_head展开再互换1、2维度而不是直接按注意力输入展开，是因为view的展开方式是直接把输入全部排开，
         # 然后按要求构造，可以发现只有上述操作能够实现我们将每个头对应部分取出来的目标
-        xq = xq.view(bsz, seqlen, self.n_heads, self.head_dim)
-        xk = xk.view(bsz, seqlen, self.n_heads, self.head_dim)
-        xv = xv.view(bsz, seqlen, self.n_heads, self.head_dim)
+        xq = xq.view(bsz, q_len, self.n_heads, self.head_dim)
+        xk = xk.view(bsz, kv_len, self.n_heads, self.head_dim)
+        xv = xv.view(bsz, kv_len, self.n_heads, self.head_dim)
         xq = xq.transpose(1, 2)
         xk = xk.transpose(1, 2)
         xv = xv.transpose(1, 2)
@@ -305,19 +309,19 @@ class MultiHeadAttention(nn.Module):
         if self.is_causal:
             assert hasattr(self, 'mask')
             # 这里截取到序列长度，因为有些序列可能比 max_seq_len 短
-            scores = scores + self.mask[:, :, :seqlen, :seqlen]
-        # 计算 softmax，维度为 (B, nh, T, T)
+            scores = scores + self.mask[:, :, :q_len, :kv_len]
+        # 计算 softmax，维度为 (B, nh, q_len, kv_len)
         scores = F.softmax(scores.float(), dim=-1).type_as(xq)
         # 做 Dropout
         scores = self.attn_dropout(scores)
-        # V * Score，维度为(B, nh, T, T) x (B, nh, T, hs) -> (B, nh, T, hs)
+        # Score * V，维度为(B, nh, q_len, kv_len) x (B, nh, kv_len, hs) -> (B, nh, q_len, hs)
         output = torch.matmul(scores, xv)
 
         # 恢复时间维度并合并头。
         # 将多头的结果拼接起来, 先交换维度为 (B, T, n_head, dim // n_head)，再拼接成 (B, T, n_head * dim // n_head)
         # contiguous 函数用于重新开辟一块新内存存储，因为Pytorch设置先transpose再view会报错，
         # 因为view直接基于底层存储得到，然而transpose并不会改变底层存储，因此需要额外存储
-        output = output.transpose(1, 2).contiguous().view(bsz, seqlen, -1)
+        output = output.transpose(1, 2).contiguous().view(bsz, q_len, -1)
 
         # 最终投影回残差流。
         output = self.wo(output)
@@ -733,13 +737,13 @@ $$
 当 $H$ 不是一个单位矩阵时，因为模型的 Embedding 层所形成的 d 维向量之间任意两个维度的相关性比较小，满足一定的解耦性，我们可以将其视作对角矩阵，那么使用上述编码：
 
 $$
-\begin{equation}\boldsymbol{p}_m^{\top} \boldsymbol{\mathcal{H}} \boldsymbol{p}_n=\sum_{i=1}^{d/2} \boldsymbol{\mathcal{H}}_{2i,2i} \cos m\theta_i \cos n\theta_i + \boldsymbol{\mathcal{H}}_{2i+1,2i+1} \sin m\theta_i \sin n\theta_i\end{equation}
+\begin{equation}\boldsymbol{p}_m^{\top} \boldsymbol{\mathcal{H}} \boldsymbol{p}_n=\sum_{i=0}^{d/2-1} \boldsymbol{\mathcal{H}}_{2i,2i} \cos m\theta_i \cos n\theta_i + \boldsymbol{\mathcal{H}}_{2i+1,2i+1} \sin m\theta_i \sin n\theta_i\end{equation}
 $$
 
 通过积化和差：
 
 $$
-\begin{equation}\sum_{i=1}^{d/2} \frac{1}{2}\left(\boldsymbol{\mathcal{H}}_{2i,2i} + \boldsymbol{\mathcal{H}}_{2i+1,2i+1}\right) \cos (m-n)\theta_i + \frac{1}{2}\left(\boldsymbol{\mathcal{H}}_{2i,2i} - \boldsymbol{\mathcal{H}}_{2i+1,2i+1}\right) \cos (m+n)\theta_i \end{equation}
+\begin{equation}\sum_{i=0}^{d/2-1} \frac{1}{2}\left(\boldsymbol{\mathcal{H}}_{2i,2i} + \boldsymbol{\mathcal{H}}_{2i+1,2i+1}\right) \cos (m-n)\theta_i + \frac{1}{2}\left(\boldsymbol{\mathcal{H}}_{2i,2i} - \boldsymbol{\mathcal{H}}_{2i+1,2i+1}\right) \cos (m+n)\theta_i \end{equation}
 $$
 
 说明该编码仍然可以表示相对位置。
@@ -761,8 +765,6 @@ class PositionalEncoding(nn.Module):
 
     def __init__(self, args):
         super(PositionalEncoding, self).__init__()
-        # Dropout 层
-        # self.dropout = nn.Dropout(p=args.dropout)
 
         # block size 是序列的最大长度
         pe = torch.zeros(args.block_size, args.n_embd)
@@ -794,7 +796,7 @@ class PositionalEncoding(nn.Module):
 
 但需要注意的是，上图是原论文《Attention is all you need》配图，LayerNorm 层放在了 Attention 层后面，也就是“Post-Norm”结构，但在其发布的源代码中，LayerNorm 层是放在 Attention 层前面的，也就是“Pre Norm”结构。考虑到目前 LLM 一般采用“Pre-Norm”结构（可以使 loss 更稳定），本文在实现时采用“Pre-Norm”结构。
 
-如图，经过 tokenizer 映射后的输出先经过 Embedding 层和 Positional Embedding 层编码，然后进入上一节讲过的 N 个 Encoder 和 N 个 Decoder（在 Transformer 原模型中，N 取为6），最后经过一个线性层和一个 Softmax 层就得到了最终输出。
+如图，源序列和目标序列经过 tokenizer 映射后，分别通过 Embedding 层和 Positional Embedding 层编码。源序列进入 N 个 Encoder，目标序列与 Encoder 的输出共同进入 N 个 Decoder（在 Transformer 原模型中，N 取为6），最后经过一个线性层和一个 Softmax 层就得到了最终输出。
 
 基于之前所实现过的组件，我们实现完整的 Transformer 模型：
 
@@ -843,29 +845,27 @@ class Transformer(nn.Module):
             torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
     
     '''前向计算函数'''
-    def forward(self, idx, targets=None):
-        # 输入为 idx，维度为 (batch size, sequence length, 1)；targets 为目标序列，用于计算 loss
-        device = idx.device
-        b, t = idx.size()
-        assert t <= self.args.block_size, f"不能计算该序列，该序列长度为 {t}, 最大序列长度只有 {self.args.block_size}"
+    def forward(self, src, tgt, targets=None):
+        # src 和 tgt 的维度均为 (batch size, sequence length)；targets 用于计算 loss
+        src_batch_size, src_len = src.size()
+        tgt_batch_size, tgt_len = tgt.size()
+        assert src_batch_size == tgt_batch_size, "源序列和目标序列的 batch size 必须相同"
+        assert src_len <= self.args.block_size, f"不能计算源序列，该序列长度为 {src_len}, 最大序列长度只有 {self.args.block_size}"
+        assert tgt_len <= self.args.block_size, f"不能计算目标序列，该序列长度为 {tgt_len}, 最大序列长度只有 {self.args.block_size}"
 
-        # 通过 self.transformer
-        # 首先将输入 idx 通过 Embedding 层，得到维度为 (batch size, sequence length, n_embd)
-        print("idx",idx.size())
-        # 通过 Embedding 层
-        tok_emb = self.transformer.wte(idx)
-        print("tok_emb",tok_emb.size())
-        # 然后通过位置编码
-        pos_emb = self.transformer.wpe(tok_emb) 
-        # 再进行 Dropout
-        x = self.transformer.drop(pos_emb)
-        # 然后通过 Encoder
-        print("x after wpe:",x.size())
-        enc_out = self.transformer.encoder(x)
-        print("enc_out:",enc_out.size())
-        # 再通过 Decoder
-        x = self.transformer.decoder(x, enc_out)
-        print("x after decoder:",x.size())
+        # 源序列经过 Embedding、位置编码和 Dropout 后输入 Encoder
+        print("src", src.size())
+        src_emb = self.transformer.drop(self.transformer.wpe(self.transformer.wte(src)))
+        print("src after wpe:", src_emb.size())
+        enc_out = self.transformer.encoder(src_emb)
+        print("enc_out:", enc_out.size())
+
+        # 目标序列独立编码后，与 Encoder 输出一起输入 Decoder
+        print("tgt", tgt.size())
+        tgt_emb = self.transformer.drop(self.transformer.wpe(self.transformer.wte(tgt)))
+        print("tgt after wpe:", tgt_emb.size())
+        x = self.transformer.decoder(tgt_emb, enc_out)
+        print("x after decoder:", x.size())
 
         if targets is not None:
             # 训练阶段，如果我们给了 targets，就计算 loss
@@ -886,9 +886,9 @@ class Transformer(nn.Module):
 
 - get_num_params：用于统计模型的参数量
 - _init_weights：用于对模型所有参数进行随机初始化
-- forward：前向计算函数
+- forward：分别编码源序列和目标序列，并将目标序列与 Encoder 输出传入 Decoder 的前向计算函数
 
-另外，在前向计算函数中，我们对模型使用 pytorch 的交叉熵函数来计算损失，对于不同的损失函数，读者可以查阅 Pytorch 的官方文档，此处就不再赘述了。
+调用模型时需要分别传入源序列 `src` 和目标序列 `tgt`。在前向计算函数中，我们对模型使用 pytorch 的交叉熵函数来计算损失；`targets` 应与 Decoder 的目标序列对齐。对于不同的损失函数，读者可以查阅 Pytorch 的官方文档，此处就不再赘述了。
 
 经过上述步骤，我们就可以从零“手搓”一个完整的、可计算的 Transformer 模型。限于本书主要聚焦在 LLM，在本章，我们就不再详细讲述如何训练 Transformer 模型了；在后文中，我们将类似地从零“手搓”一个 LLaMA 模型，并手把手带大家训练一个属于自己的 Tiny LLaMA。
 
