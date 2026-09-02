@@ -210,8 +210,6 @@ class PositionalEncoding(nn.Module):
 
     def __init__(self, args):
         super(PositionalEncoding, self).__init__()
-        # Dropout 层
-        # self.dropout = nn.Dropout(p=args.dropout)
 
         # block size 是序列的最大长度
         pe = torch.zeros(args.block_size, args.n_embd)
@@ -294,7 +292,7 @@ class Transformer(nn.Module):
         print("tok_emb", tok_emb.size())
         # 然后通过位置编码
         pos_emb = self.transformer.wpe(tok_emb)
-        # 再进行 Dropout
+        # 对词嵌入与位置编码相加后的结果应用 Dropout
         x = self.transformer.drop(pos_emb)
         # 然后通过 Encoder
         print("x after wpe:", x.size())
