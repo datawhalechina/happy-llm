@@ -281,7 +281,7 @@ class Transformer(nn.Module):
     '''前向计算函数'''
 
     def forward(self, idx, targets=None):
-        # 输入为 idx，维度为 (batch size, sequence length, 1)；targets 为目标序列，用于计算 loss
+        # 输入为 idx，维度为 (batch size, sequence length)；targets 为目标序列，用于计算 loss
         device = idx.device
         b, t = idx.size()
         assert t <= self.args.block_size, f"不能计算该序列，该序列长度为 {t}, 最大序列长度只有 {self.args.block_size}"

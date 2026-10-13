@@ -582,10 +582,10 @@ output: 2
 
 当然，在实际情况下，tokenizer 的工作会比这更复杂。例如，分词有多种不同的方式，可以切分成词、切分成子词、切分成字符等，而词表大小则往往高达数万数十万。此处我们不赘述 tokenizer 的详细情况，在后文会详细介绍大模型的 tokenizer 是如何运行和训练的。
 
-因此，Embedding 层的输入往往是一个形状为 （batch_size，seq_len，1）的矩阵，第一个维度是一次批处理的数量，第二个维度是自然语言序列的长度，第三个维度则是 token 经过 tokenizer 转化成的 index 值。例如，对上述输入，Embedding 层的输入会是：
+因此，Embedding 层的输入往往是一个形状为 （batch_size，seq_len）的整型索引张量，第一个维度是一次批处理的数量，第二个维度是自然语言序列的长度，每个位置存放 token 经过 tokenizer 转化成的 index。例如，对上述输入，Embedding 层的输入会是：
 
 ```
-[[[0],[1],[2]]]
+[[0, 1, 2]]
 ```
 
 其 batch_size 为1，seq_len 为3，转化出来的 index 如上。
@@ -844,7 +844,7 @@ class Transformer(nn.Module):
     
     '''前向计算函数'''
     def forward(self, idx, targets=None):
-        # 输入为 idx，维度为 (batch size, sequence length, 1)；targets 为目标序列，用于计算 loss
+        # 输入为 idx，维度为 (batch size, sequence length)；targets 为目标序列，用于计算 loss
         device = idx.device
         b, t = idx.size()
         assert t <= self.args.block_size, f"不能计算该序列，该序列长度为 {t}, 最大序列长度只有 {self.args.block_size}"
