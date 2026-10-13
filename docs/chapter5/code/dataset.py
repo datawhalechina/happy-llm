@@ -43,6 +43,9 @@ class PretrainDataset(Dataset):
         X = np.array(input_id[:-1]).astype(np.int64)
         Y = np.array(input_id[1:]).astype(np.int64)
         loss_mask = np.array(loss_mask[1:]).astype(np.int64)
+        # tokenizer_k 的 pad 与 <|im_end|> 共用 id；非监督位置必须标 -100，
+        # 否则 Transformer.forward 会把结束符当成 padding 从损失里丢掉。
+        Y = np.where(loss_mask == 1, Y, -100).astype(np.int64)
         return torch.from_numpy(X), torch.from_numpy(Y), torch.from_numpy(loss_mask)
     
 class SFTDataset(Dataset):
@@ -116,4 +119,6 @@ class SFTDataset(Dataset):
         X = np.array(input_id[:-1]).astype(np.int64)
         Y = np.array(input_id[1:]).astype(np.int64)
         loss_mask = np.array(loss_mask[1:]).astype(np.int64)
+        # 同上：prompt / padding 标成 -100，助手内容和 <|im_end|> 保留真实 token id
+        Y = np.where(loss_mask == 1, Y, -100).astype(np.int64)
         return torch.from_numpy(X), torch.from_numpy(Y), torch.from_numpy(loss_mask)
