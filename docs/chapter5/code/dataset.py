@@ -106,11 +106,11 @@ class SFTDataset(Dataset):
         text = self.tokenizer.apply_chat_template(sample, tokenize=False, add_generation_prompt=False)
         input_id = self.tokenizer(text).data['input_ids'][:self.max_length]
         text_len = len(input_id)
+        loss_mask = self.generate_loss_mask(input_id)
         # 没满最大长度的剩余部分
         padding_len = self.max_length - text_len
         input_id = input_id + [self.padding] * padding_len
-        # 0表示不计算损失
-        loss_mask = self.generate_loss_mask(input_id)
+        loss_mask = loss_mask + [0] * padding_len
 
         input_id = np.array(input_id)
         X = np.array(input_id[:-1]).astype(np.int64)

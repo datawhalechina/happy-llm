@@ -25,6 +25,16 @@ def Logger(content):
     """日志记录器"""
     print(content)
 
+def masked_loss(loss, loss_mask):
+    """按监督掩码求平均损失，空 batch 返回保留计算图的 0。"""
+    loss = loss.view(-1)
+    loss_mask = loss_mask.view(-1).to(dtype=loss.dtype)
+    valid_tokens = loss_mask.sum()
+    if valid_tokens.item() == 0:
+        # 保留计算图，让梯度累积在空 batch 上也保持同步。
+        return loss.sum() * 0.0
+    return torch.sum(loss * loss_mask) / valid_tokens
+
 def get_lr(it, all):
     """获取学习率"""
     # 1) linear warmup for warmup_iters steps
@@ -66,7 +76,7 @@ def train_epoch(epoch):
             out = model(X, Y)
             loss = out.last_loss / args.accumulation_steps
             loss_mask = loss_mask.view(-1)
-            loss = torch.sum(loss * loss_mask) / loss_mask.sum()
+            loss = masked_loss(loss, loss_mask)
 
         # 反向传播
         scaler.scale(loss).backward()
