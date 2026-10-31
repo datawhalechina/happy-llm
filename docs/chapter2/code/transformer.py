@@ -54,8 +54,9 @@ class MultiHeadAttention(nn.Module):
 
     def forward(self, q: torch.Tensor, k: torch.Tensor, v: torch.Tensor):
 
-        # 获取批次大小和序列长度，[batch_size, seq_len, dim]
-        bsz, seqlen, _ = q.shape
+        # 获取批次大小、查询序列长度和键值序列长度，[batch_size, seq_len, dim]
+        bsz, query_len, _ = q.shape
+        _, key_value_len, _ = k.shape
 
         # 计算查询（Q）、键（K）、值（V）,输入通过参数矩阵层，维度为 (B, T, n_embed) x (n_embed, dim) -> (B, T, dim)
         xq, xk, xv = self.wq(q), self.wk(k), self.wv(v)
@@ -64,9 +65,9 @@ class MultiHeadAttention(nn.Module):
         # 因为在注意力计算中我们是取了后两个维度参与计算
         # 为什么要先按B*T*n_head*C//n_head展开再互换1、2维度而不是直接按注意力输入展开，是因为view的展开方式是直接把输入全部排开，
         # 然后按要求构造，可以发现只有上述操作能够实现我们将每个头对应部分取出来的目标
-        xq = xq.view(bsz, seqlen, self.n_heads, self.head_dim)
-        xk = xk.view(bsz, seqlen, self.n_heads, self.head_dim)
-        xv = xv.view(bsz, seqlen, self.n_heads, self.head_dim)
+        xq = xq.view(bsz, query_len, self.n_heads, self.head_dim)
+        xk = xk.view(bsz, key_value_len, self.n_heads, self.head_dim)
+        xv = xv.view(bsz, key_value_len, self.n_heads, self.head_dim)
         xq = xq.transpose(1, 2)
         xk = xk.transpose(1, 2)
         xv = xv.transpose(1, 2)
@@ -78,7 +79,7 @@ class MultiHeadAttention(nn.Module):
         if self.is_causal:
             assert hasattr(self, 'mask')
             # 这里截取到序列长度，因为有些序列可能比 max_seq_len 短
-            scores = scores + self.mask[:, :, :seqlen, :seqlen]
+            scores = scores + self.mask[:, :, :query_len, :key_value_len]
         # 计算 softmax，维度为 (B, nh, T, T)
         scores = F.softmax(scores.float(), dim=-1).type_as(xq)
         # 做 Dropout
@@ -90,7 +91,7 @@ class MultiHeadAttention(nn.Module):
         # 将多头的结果拼接起来, 先交换维度为 (B, T, n_head, dim // n_head)，再拼接成 (B, T, n_head * dim // n_head)
         # contiguous 函数用于重新开辟一块新内存存储，因为Pytorch设置先transpose再view会报错，
         # 因为view直接基于底层存储得到，然而transpose并不会改变底层存储，因此需要额外存储
-        output = output.transpose(1, 2).contiguous().view(bsz, seqlen, -1)
+        output = output.transpose(1, 2).contiguous().view(bsz, query_len, -1)
 
         # 最终投影回残差流。
         output = self.wo(output)
@@ -280,11 +281,18 @@ class Transformer(nn.Module):
 
     '''前向计算函数'''
 
-    def forward(self, idx, targets=None):
-        # 输入为 idx，维度为 (batch size, sequence length, 1)；targets 为目标序列，用于计算 loss
-        device = idx.device
-        b, t = idx.size()
-        assert t <= self.args.block_size, f"不能计算该序列，该序列长度为 {t}, 最大序列长度只有 {self.args.block_size}"
+    def forward(self, idx, outputs=None, targets=None):
+        # idx 是源序列，outputs 是右移后的目标序列，targets 是未右移的目标序列
+        if outputs is None:
+            if targets is not None:
+                raise ValueError("训练时必须显式传入右移后的 outputs")
+            # 保留单序列推理示例的调用方式。
+            outputs = idx
+
+        source_length = idx.size(1)
+        target_length = outputs.size(1)
+        assert source_length <= self.args.block_size, f"源序列长度为 {source_length}，超过最大长度 {self.args.block_size}"
+        assert target_length <= self.args.block_size, f"目标序列长度为 {target_length}，超过最大长度 {self.args.block_size}"
 
         # 通过 self.transformer
         # 首先将输入 idx 通过 Embedding 层，得到维度为 (batch size, sequence length, n_embd)
@@ -300,11 +308,16 @@ class Transformer(nn.Module):
         print("x after wpe:", x.size())
         enc_out = self.transformer.encoder(x)
         print("enc_out:", enc_out.size())
-        # 再通过 Decoder
-        x = self.transformer.decoder(x, enc_out)
+        # Decoder 使用右移后的目标序列，避免训练时直接看到当前目标 token。
+        decoder_tok_emb = self.transformer.wte(outputs)
+        decoder_pos_emb = self.transformer.wpe(decoder_tok_emb)
+        decoder_input = self.transformer.drop(decoder_pos_emb)
+        x = self.transformer.decoder(decoder_input, enc_out)
         print("x after decoder:", x.size())
 
         if targets is not None:
+            if targets.shape != outputs.shape:
+                raise ValueError("targets 和 outputs 必须具有相同的形状")
             # 训练阶段，如果我们给了 targets，就计算 loss
             # 先通过最后的 Linear 层，得到维度为 (batch size, sequence length, vocab size)
             logits = self.lm_head(x)
