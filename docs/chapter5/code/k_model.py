@@ -449,8 +449,17 @@ class Transformer(PreTrainedModel):
                 logits = self.output(h[:, [-1], :])
             else:
                 full_logits = self.output(h)
-                last_token_pos = attention_mask.long().sum(dim=1).clamp(min=1) - 1
-                logits = full_logits[torch.arange(_bsz, device=tokens.device), last_token_pos].unsqueeze(1)
+
+                # 根据实际位置查找最后一个有效 token，兼容左右 padding。
+                positions = torch.arange(seqlen, device=tokens.device)
+                last_token_pos = torch.where(
+                    attention_mask, positions, -1
+                ).amax(dim=1).clamp_min(0)
+
+                logits = full_logits[
+                    torch.arange(_bsz, device=tokens.device),
+                    last_token_pos
+                ].unsqueeze(1)
             self.last_loss = None
 
         # 设置输出
