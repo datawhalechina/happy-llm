@@ -64,7 +64,10 @@ def train_epoch(epoch):
         # 前向传播
         with ctx:
             out = model(X, Y)
-            loss = out.last_loss / args.accumulation_steps
+            # 最后一个累积组可能不足设定步数，按实际 batch 数归一化。
+            accumulation_start = step // args.accumulation_steps * args.accumulation_steps
+            accumulation_steps = min(args.accumulation_steps, iter_per_epoch - accumulation_start)
+            loss = out.last_loss / accumulation_steps
             loss_mask = loss_mask.view(-1)
             loss = torch.sum(loss * loss_mask) / loss_mask.sum()
 
@@ -72,7 +75,7 @@ def train_epoch(epoch):
         scaler.scale(loss).backward()
 
         # 更新权重
-        if (step + 1) % args.accumulation_steps == 0:
+        if (step + 1) % args.accumulation_steps == 0 or (step + 1) == iter_per_epoch:
             scaler.unscale_(optimizer)
             torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip)
 
@@ -90,12 +93,12 @@ def train_epoch(epoch):
                     args.epochs,
                     step,
                     iter_per_epoch,
-                    loss.item() * args.accumulation_steps,
+                    loss.item() * accumulation_steps,
                     optimizer.param_groups[-1]['lr'],
                     spend_time / (step + 1) * iter_per_epoch // 60 - spend_time // 60))
             if args.use_swanlab:
                 swanlab.log({
-                    "loss": loss.item() * args.accumulation_steps,
+                    "loss": loss.item() * accumulation_steps,
                     "lr": optimizer.param_groups[-1]['lr']
                 })
 
