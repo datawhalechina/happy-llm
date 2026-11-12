@@ -26,4 +26,5 @@ echo ">>> 04_word2vec_skipgram"
 python 04_word2vec_skipgram.py
 
 echo
+echo "Tip: for the §1.4 representation chain lesson, run: bash run_lesson_14.sh"
 echo "All chapter1 demos finished."

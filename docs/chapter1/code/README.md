@@ -1,41 +1,44 @@
 # 第一章代码实践（uv）
 
-对应正文：[第一章 NLP 基础概念](../第一章%20NLP基础概念.md)
+对应正文：[第一章 NLP 基础概念](../第一章%20NLP基础概念.md)  
+**文本表示演进实验课（推荐精读+实操）：** [../1.4-文本表示演进实验课.md](../1.4-文本表示演进实验课.md)
 
-本章示例刻意保持小规模：全部使用本地合成/教材风格语料，无需联网下载数据集，可在普通 CPU 上几秒到几十秒内跑完。
+本章示例刻意保持小规模：本地合成/教材风格语料，无需联网下载数据集。
 
 ## 环境（请用 uv，不要用 conda）
-
-在仓库根目录执行：
 
 ```bash
 cd docs/chapter1/code
 uv venv --python 3.12
 source .venv/bin/activate
 uv pip install -r requirements.txt
+# 若 torch 很慢：
+# uv pip install torch --index-url https://download.pytorch.org/whl/cpu
 ```
 
-若系统尚未安装 uv：`curl -LsSf https://astral.sh/uv/install.sh | sh`
+## 路径 A：搞清「稀疏 → N-gram → Word2Vec → 上下文」这条链（优先）
 
-## 示例一览
+| 脚本 | 课 | 你要亲眼看到 |
+| --- | --- | --- |
+| `05_sparse_vsm_lab.py` | A. One-Hot/TF-IDF | 近义词正交、稀疏矩阵、TF-IDF≠语义嵌入 |
+| `06_ngram_order_lab.py` | B. N-gram | 词袋分不清词序；通顺句 logP 更高；N 变大稀疏爆炸 |
+| `07_static_embedding_lab.py` | C. Word2Vec | 近义词靠近；「苹果」在两句仍是同一向量 |
+| `08_contextual_bilstm_lab.py` | D. ELMo 风格 | 迷你 BiLSTM：同一「苹果」在水果句/公司句向量分离 |
+
+```bash
+bash run_lesson_14.sh
+```
+
+每课结构均为：概念打印 → 数值实验 →「应观察到」→ 自测题。
+
+## 路径 B：更早的「能跑通」示例
 
 | 脚本 | 对应章节 | 做什么 |
 | --- | --- | --- |
-| `01_chinese_tokenize.py` | 1.3.1 / 1.3.2 | jieba 中文分词 + 迷你 BPE 训练与切分 |
-| `02_tfidf_classify.py` | 1.3.4 / 1.4.1 | TF-IDF 向量空间 + 逻辑回归文本分类（训练+评估） |
-| `03_ngram_lm.py` | 1.4.2 | 加平滑的 trigram 语言模型训练与困惑度 |
-| `04_word2vec_skipgram.py` | 1.4.3 | 迷你 Skip-Gram + 负采样词向量训练（纯 NumPy） |
-
-## 运行
-
-```bash
-python 01_chinese_tokenize.py
-python 02_tfidf_classify.py
-python 03_ngram_lm.py
-python 04_word2vec_skipgram.py
-```
-
-或一键：
+| `01_chinese_tokenize.py` | 1.3.1 / 1.3.2 | jieba + 迷你 BPE |
+| `02_tfidf_classify.py` | 1.3.4 / 1.4.1 | TF-IDF 文本分类 |
+| `03_ngram_lm.py` | 1.4.2 | trigram LM |
+| `04_word2vec_skipgram.py` | 1.4.3 | NumPy Skip-Gram |
 
 ```bash
 bash run_all.sh
@@ -43,6 +46,6 @@ bash run_all.sh
 
 ## 说明
 
-- 示例目标是**把正文概念跑通**，不是刷榜；分类准确率与词向量相似度仅作直观演示。
-- 依赖刻意保持轻量（NumPy / scikit-learn / jieba），CPU 即可；Word2Vec 用纯 NumPy 实现，便于对照正文公式。
-- ELMo / 大规模预训练不在本章范围（见后续章节）。
+- 演进课目标是**教学直觉**，不是刷榜。  
+- `08` 是 **ELMo 思想的迷你类比**（双向 LM 隐状态），不是加载原版 ELMo 权重。  
+- 全链路可在 CPU 上数秒到约一分钟内跑完。
