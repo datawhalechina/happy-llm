@@ -1,0 +1,7 @@
+# Chapter 1 demos — install with uv (not conda)
+numpy>=1.26,<3
+scikit-learn>=1.4,<2
+jieba>=0.42.1
+# 08_contextual_bilstm_lab.py needs torch. If download is slow:
+#   uv pip install torch --index-url https://download.pytorch.org/whl/cpu
+torch>=2.2,<3
